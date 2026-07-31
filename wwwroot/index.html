@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sheet Metal Shift Audit — QA 343-31</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#eef1f5; --panel:#fff; --ink:#16202e; --muted:#647084; --faint:#8b97a8;
+  --line:#dbe1ea; --steel:#1c3d5a; --steel2:#24506f; --blue:#2f6f9f;
+  --green:#15803d; --green-bg:#dcfce7; --amber:#b45309; --amber-bg:#fdeecb;
+  --red:#b91c1c; --red-bg:#fde4e4; --grey-bg:#eef1f5;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  color:var(--ink);background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.mono{font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;}
+button{font:inherit}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding:14px 20px;background:var(--steel);color:#fff;flex-wrap:wrap;box-shadow:0 1px 0 rgba(0,0,0,.15);}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{display:flex;flex-direction:column;gap:3px}
+.mark span{width:26px;height:6px;border-radius:1px;display:block}
+.ttl{font-weight:700;font-size:16px;letter-spacing:.2px}
+.sub{font-size:11.5px;color:#b7c6d6;margin-top:1px}
+.tabs{display:flex;gap:4px;background:rgba(255,255,255,.08);padding:4px;border-radius:9px}
+.tabs button{border:0;background:transparent;color:#cdd8e4;font-size:13px;font-weight:600;
+  padding:7px 14px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:7px}
+.tabs button.on{background:#fff;color:var(--steel)}
+.tabs em{font-style:normal;font-size:11px;background:var(--blue);color:#fff;border-radius:20px;padding:1px 7px;font-weight:700}
+.tabs button.on em{background:var(--steel);color:#fff}
+
+.pane{max-width:1080px;margin:0 auto;padding:20px 18px 120px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(20,30,45,.04)}
+.hidden{display:none !important}
+
+/* entry header */
+.head-card{margin-bottom:14px}
+.head-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field>span{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,.field textarea,.subfield input{
+  font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;color:var(--ink);width:100%}
+.field textarea{resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue);outline-offset:0;border-color:transparent}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 10px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;cursor:pointer}
+.chip.on{background:var(--steel);color:#fff;border-color:var(--steel)}
+.chip-div{width:1px;height:20px;background:var(--line);margin:0 4px}
+.ghost{border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer}
+.ghost:hover{background:#f4f7fb}
+.ghost.danger{color:var(--red);border-color:#f0c9c9}
+
+/* machine rows */
+.rows{display:flex;flex-direction:column;gap:7px}
+.row{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap;transition:border-color .12s}
+.row.state-nok{border-color:#e7a3a3;background:#fffafa}
+.row.state-todo{background:#fcfdfe}
+.spine{width:6px;flex-shrink:0}
+.spine.green{background:var(--green)} .spine.amber{background:var(--amber)} .spine.red{background:var(--red)}
+.row-main{display:flex;align-items:center;gap:12px;padding:11px 14px;flex:1;min-width:0}
+.row-id{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--faint);width:26px;text-align:right;flex-shrink:0}
+.row-name{flex:1;min-width:0}
+.nm{font-size:14.5px;font-weight:600;line-height:1.2;display:flex;align-items:center;gap:8px}
+.xx{font-size:10px;font-weight:800;color:#fff;background:var(--red);border-radius:4px;padding:1px 5px;letter-spacing:.5px}
+.meta{display:flex;gap:6px;margin-top:5px}
+.pill{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:5px}
+.pill.green{color:var(--green);background:var(--green-bg)}
+.pill.amber{color:var(--amber);background:var(--amber-bg)}
+.pill.red{color:var(--red);background:var(--red-bg)}
+.pill.grey{color:var(--muted);background:var(--grey-bg)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f4f7fb;flex-shrink:0}
+.seg-btn{border:0;background:transparent;font-weight:700;color:var(--muted);cursor:pointer;border-right:1px solid var(--line)}
+.seg-md .seg-btn{font-size:12.5px;padding:8px 13px}
+.seg-sm .seg-btn{font-size:11px;padding:5px 9px}
+.seg-btn:last-child{border-right:0}
+.seg-btn.on.green{background:var(--green);color:#fff}
+.seg-btn.on.red{background:var(--red);color:#fff}
+.seg-btn.on.grey{background:#64748b;color:#fff}
+.disc{width:32px;height:32px;flex-shrink:0;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:18px;font-weight:600;color:var(--muted);cursor:pointer;line-height:1}
+.disc.on{background:var(--steel);color:#fff;border-color:var(--steel)}
+
+.row-note{width:100%;padding:0 14px 11px 52px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.note-part{font-size:12px;color:var(--blue)}
+.note-dev{font-size:12.5px;color:var(--muted)}
+.row-detail{width:100%;padding:4px 16px 16px 52px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px;margin-top:2px}
+.sub-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.subfield{display:flex;flex-direction:column;gap:6px}
+.subfield>span{font-size:11px;font-weight:600;color:var(--muted)}
+.detail-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.other-card{margin-top:14px}
+
+.list-empty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
+
+/* sticky footer */
+.footbar{position:fixed;bottom:0;left:0;right:0;z-index:15;background:#fff;border-top:1px solid var(--line);
+  padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -2px 10px rgba(20,30,45,.05)}
+.progress{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.pbar{flex:1;max-width:340px;height:8px;background:#e6ebf1;border-radius:20px;overflow:hidden}
+.pbar span{display:block;height:100%;background:var(--blue);border-radius:20px;transition:width .2s}
+.pnum{font-size:13px;color:var(--muted);white-space:nowrap}
+.pnum strong{color:var(--ink);font-size:15px}
+.fail-count{color:var(--red);font-weight:700;margin-left:10px}
+.foot-actions{display:flex;gap:8px}
+.primary{border:0;background:var(--steel);color:#fff;font-size:14px;font-weight:700;padding:10px 20px;border-radius:8px;cursor:pointer}
+.primary:hover{background:var(--steel2)}
+.primary:disabled{opacity:.4;cursor:not-allowed}
+
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#fff;
+  padding:11px 20px;border-radius:9px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.err{background:var(--red)}
+
+/* dashboard */
+.dash-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.range{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.range .field{gap:3px}
+.range .field>span{font-size:10px}
+.range .field input{padding:7px 9px;font-size:13px}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi-val{font-size:30px;font-weight:800;letter-spacing:-.5px;font-family:ui-monospace,Menlo,monospace}
+.kpi-lbl{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.kpi.red .kpi-val{color:var(--red)} .kpi.green .kpi-val{color:var(--green)}
+
+.dash-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+.card-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.card-hd h3{margin:0;font-size:14px;font-weight:700}
+.hd-note{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+.side{display:flex;flex-direction:column;gap:14px}
+.chart-wrap{position:relative;height:150px}
+
+.fail-list{display:flex;flex-direction:column;gap:9px}
+.fail{display:flex;gap:11px;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fffafa}
+.sev-tag{flex-shrink:0;font-size:10.5px;font-weight:800;letter-spacing:.4px;color:#fff;border-radius:6px;padding:5px 8px;height:fit-content}
+.sev-tag.red{background:var(--red)} .sev-tag.amber{background:var(--amber)} .sev-tag.green{background:var(--green)}
+.fail-body{flex:1;min-width:0}
+.fail-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fail-name{font-weight:700;font-size:14px}
+.fail-when{font-size:11.5px;color:var(--faint);white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
+.fail-dev{font-size:13px;color:var(--muted);margin:3px 0 7px}
+.fail-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--grey-bg);border-radius:5px;padding:2px 8px}
+.tag.act{color:var(--steel);background:#e3edf5}
+.tag.warn{color:var(--red);background:var(--red-bg)}
+.clean{padding:20px;text-align:center;font-size:14px;color:var(--muted)}
+
+.rec{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.rec:last-child{border-bottom:0}
+.rec-main{font-size:13px}
+.rec-stats{display:flex;gap:10px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+.rec-stats .good{color:var(--green)} .rec-stats .bad{color:var(--red);font-weight:700}
+
+.empty{text-align:center;padding:60px 20px;max-width:460px;margin:0 auto}
+.empty-mark{font-size:40px;color:var(--faint)}
+.empty h2{margin:12px 0 6px;font-size:20px}
+.empty p{color:var(--muted)}
+.empty-actions{display:flex;gap:10px;justify-content:center;margin-top:20px}
+
+@media (max-width:820px){
+  .head-grid{grid-template-columns:1fr 1fr}
+  .dash-grid{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .detail-grid,.sub-checks{grid-template-columns:1fr}
+  .row-detail,.row-note{padding-left:16px}
+  .row-main{flex-wrap:wrap}
+  .seg-md{order:3;width:100%}.seg-md .seg-btn{flex:1}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark" aria-hidden="true">
+      <span style="background:#c8102e"></span>
+      <span style="background:#2f6f9f"></span>
+      <span style="background:#15803d"></span>
+    </div>
+    <div>
+      <div class="ttl">Sheet Metal Shift Audit</div>
+      <div class="sub">QA 343-31 &middot; digital line check &amp; dashboard</div>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button id="tab-entry" class="on" onclick="showView('entry')">New audit</button>
+    <button id="tab-dash" onclick="showView('dashboard')">Dashboard</button>
+  </nav>
+</header>
+
+<!-- ============================ ENTRY ============================ -->
+<main id="view-entry" class="pane">
+  <section class="card head-card">
+    <div class="head-grid">
+      <label class="field"><span>Area</span><input id="h-area" value="Sheet Metal" /></label>
+      <label class="field"><span>Date</span><input id="h-date" type="date" /></label>
+      <label class="field"><span>Shift</span>
+        <select id="h-shift"><option>Early</option><option>Late</option><option>Nights</option></select>
+      </label>
+      <label class="field"><span>Auditor</span><input id="h-auditor" placeholder="Initials" /></label>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <div class="chips" id="filter-chips">
+      <button class="chip on" data-loc="all">All areas</button>
+      <button class="chip" data-loc="Ph1">Ph1</button>
+      <button class="chip" data-loc="Ph3">Ph3</button>
+      <span class="chip-div"></span>
+      <button class="chip on" data-flag="all">Everything</button>
+      <button class="chip" data-flag="todo">Not checked</button>
+      <button class="chip" data-flag="nok">Failures</button>
+      <button class="chip" data-flag="sev3">Severity 3</button>
+    </div>
+    <button class="ghost" onclick="markShownOK()">Mark shown OK</button>
+  </div>
+
+  <section class="rows" id="rows"></section>
+
+  <section class="card other-card">
+    <label class="field"><span>Other daily issues &amp; tasks</span>
+      <textarea id="h-other" rows="2" placeholder="Free notes for the shift"></textarea>
+    </label>
+  </section>
+</main>
+
+<div id="footbar" class="footbar">
+  <div class="progress">
+    <div class="pbar"><span id="pbar-fill" style="width:0%"></span></div>
+    <div class="pnum"><strong id="checked-count">0</strong>/<span id="total-count">0</span> checked
+      <span id="fail-count" class="fail-count hidden"></span>
+    </div>
+  </div>
+  <div class="foot-actions">
+    <button class="ghost" onclick="resetEntry()">Reset</button>
+    <button id="save-btn" class="primary" onclick="submitAudit()" disabled>Save shift audit</button>
+  </div>
+</div>
+
+<!-- ============================ DASHBOARD ============================ -->
+<main id="view-dashboard" class="pane hidden">
+  <div class="dash-top">
+    <div class="range">
+      <label class="field"><span>From</span><input id="d-from" type="date" /></label>
+      <label class="field"><span>To</span><input id="d-to" type="date" /></label>
+      <button class="ghost" onclick="loadDashboard()">Refresh</button>
+    </div>
+  </div>
+  <div id="dash-body"></div>
+</main>
+
+<script>
+// --------------------------------------------------------------------------
+// Config + helpers
+// --------------------------------------------------------------------------
+const SEV = { 1:{tone:'green',label:'1'}, 2:{tone:'amber',label:'2'}, 3:{tone:'red',label:'3'} };
+const todayISO = () => new Date().toISOString().slice(0,10);
+const daysAgoISO = (n) => new Date(Date.now() - n*86400000).toISOString().slice(0,10);
+const esc = (s) => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { const b = await res.text(); if (b) msg = b; } catch (_) {}
+    throw new Error(msg || ('HTTP ' + res.status));
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function toast(msg, isErr) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3400);
+}
+
+// --------------------------------------------------------------------------
+// State
+// --------------------------------------------------------------------------
+let MACHINES = [];              // from GET /api/audit-items
+let rows = {};                  // id -> { result, partNo, plans, ndt, docs, deviation, customer, actionTaken }
+let filter = { loc:'all', flag:'all' };
+let expanded = null;
+
+const emptyRow = () => ({ result:'', partNo:'', plans:'', ndt:'', docs:'', deviation:'', customer:'', actionTaken:'' });
+
+const isAudited = r => r && r.result !== '';
+const isNA  = r => r && r.result === 'NA';
+const isNOK = r => r && (r.result==='NOK' || r.plans==='NOK' || r.ndt==='NOK' || r.docs==='NOK');
+const isOK  = r => isAudited(r) && !isNA(r) && !isNOK(r);
+
+// --------------------------------------------------------------------------
+// View switching
+// --------------------------------------------------------------------------
+function showView(v) {
+  document.getElementById('view-entry').classList.toggle('hidden', v!=='entry');
+  document.getElementById('footbar').classList.toggle('hidden', v!=='entry');
+  document.getElementById('view-dashboard').classList.toggle('hidden', v!=='dashboard');
+  document.getElementById('tab-entry').classList.toggle('on', v==='entry');
+  document.getElementById('tab-dash').classList.toggle('on', v==='dashboard');
+  if (v==='dashboard') loadDashboard();
+}
+
+// --------------------------------------------------------------------------
+// Entry form
+// --------------------------------------------------------------------------
+async function loadItems() {
+  try {
+    MACHINES = await api('/api/audit-items');
+    MACHINES.forEach(m => { if (!rows[m.id]) rows[m.id] = emptyRow(); });
+    document.getElementById('total-count').textContent = MACHINES.length;
+    renderRows();
+    updateProgress();
+  } catch (e) {
+    document.getElementById('rows').innerHTML =
+      '<div class="list-empty">Could not load the machine list.<br>' + esc(e.message) + '</div>';
+  }
+}
+
+function visibleMachines() {
+  return MACHINES.filter(m => {
+    if (filter.loc==='Ph1' && !m.location.includes('1')) return false;
+    if (filter.loc==='Ph3' && !m.location.includes('3')) return false;
+    const r = rows[m.id];
+    if (filter.flag==='todo' && isAudited(r)) return false;
+    if (filter.flag==='nok'  && !isNOK(r))    return false;
+    if (filter.flag==='sev3' && m.severity!==3) return false;
+    return true;
+  });
+}
+
+function segHtml(kind, id, value, size) {
+  const opts = [ ['OK','OK','green'], ['NOK','NOK','red'], ['NA','N/A','grey'] ];
+  return '<div class="seg seg-'+size+'">' + opts.map(([v,lbl,tone]) =>
+    '<button type="button" class="seg-btn '+(value===v?('on '+tone):'')+'" '+
+    'onclick="setSeg(\''+kind+'\','+id+',\''+v+'\')">'+lbl+'</button>').join('') + '</div>';
+}
+
+function renderRows() {
+  const list = visibleMachines();
+  const host = document.getElementById('rows');
+  if (list.length===0) { host.innerHTML = '<div class="list-empty">No machines match this filter.</div>'; return; }
+
+  host.innerHTML = list.map(m => {
+    const r = rows[m.id];
+    const sev = SEV[m.severity] || SEV[1];
+    const state = isNOK(r) ? 'nok' : isOK(r) ? 'ok' : isNA(r) ? 'na' : 'todo';
+    const open = expanded === m.id;
+
+    let tail = '';
+    if (open) {
+      tail =
+        '<div class="row-detail">' +
+          '<label class="field"><span>Drawing / Part No.</span>' +
+            '<input class="mono" value="'+esc(r.partNo)+'" oninput="setField('+m.id+',\'partNo\',this.value)"></label>' +
+          '<div class="sub-checks">' +
+            '<div class="subfield"><span>Plans in place &amp; used</span>'+segHtml('plans',m.id,r.plans,'sm')+'</div>' +
+            '<div class="subfield"><span>Destructive / NDT in place</span>'+segHtml('ndt',m.id,r.ndt,'sm')+'</div>' +
+            '<div class="subfield"><span>Area docs up to date</span>'+segHtml('docs',m.id,r.docs,'sm')+'</div>' +
+          '</div>' +
+          '<div class="detail-grid">' +
+            '<label class="field"><span>Deviation from standard</span>' +
+              '<textarea rows="2" oninput="setField('+m.id+',\'deviation\',this.value)">'+esc(r.deviation)+'</textarea></label>' +
+            '<label class="field"><span>Customer</span>' +
+              '<input value="'+esc(r.customer)+'" oninput="setField('+m.id+',\'customer\',this.value)"></label>' +
+            '<label class="field"><span>Action taken</span>' +
+              '<input placeholder="Hold / Audit / QA Tracker" value="'+esc(r.actionTaken)+'" oninput="setField('+m.id+',\'actionTaken\',this.value)"></label>' +
+          '</div>' +
+        '</div>';
+    } else if (r.deviation || r.partNo) {
+      tail = '<div class="row-note">' +
+        (r.partNo ? '<span class="mono note-part">'+esc(r.partNo)+'</span>' : '') +
+        (r.deviation ? '<span class="note-dev">'+esc(r.deviation)+'</span>' : '') +
+        (r.customer ? '<span class="pill grey">'+esc(r.customer)+'</span>' : '') + '</div>';
+    }
+
+    return '<div class="row state-'+state+'">' +
+      '<div class="spine '+sev.tone+'" title="Severity '+m.severity+'"></div>' +
+      '<div class="row-main">' +
+        '<div class="row-id">'+m.sortOrder+'</div>' +
+        '<div class="row-name"><div class="nm">'+esc(m.displayName) +
+          (m.specialMeasures ? '<span class="xx" title="Special measures">XX</span>' : '') + '</div>' +
+          '<div class="meta"><span class="pill '+sev.tone+'">SEV '+sev.label+'</span>' +
+          '<span class="pill grey">'+esc(m.location)+'</span></div></div>' +
+        segHtml('result', m.id, r.result, 'md') +
+        '<button class="disc '+(open?'on':'')+'" onclick="toggleExpand('+m.id+')" aria-label="More">'+(open?'&ndash;':'+')+'</button>' +
+      '</div>' + tail + '</div>';
+  }).join('');
+}
+
+function setSeg(kind, id, v) {
+  const r = rows[id];
+  r[kind] = (r[kind]===v) ? '' : v;   // tap again to clear
+  renderRows();
+  updateProgress();
+}
+function setField(id, key, val) { rows[id][key] = val; }  // no re-render: keep focus
+function toggleExpand(id) { expanded = (expanded===id) ? null : id; renderRows(); }
+
+function markShownOK() {
+  visibleMachines().forEach(m => { if (!isAudited(rows[m.id])) rows[m.id].result = 'OK'; });
+  renderRows();
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = MACHINES.length || 1;
+  const checked = MACHINES.filter(m => isAudited(rows[m.id])).length;
+  const fails = MACHINES.filter(m => isNOK(rows[m.id])).length;
+  document.getElementById('checked-count').textContent = checked;
+  document.getElementById('pbar-fill').style.width = Math.round(checked/total*100) + '%';
+  const fc = document.getElementById('fail-count');
+  fc.classList.toggle('hidden', fails===0);
+  fc.textContent = fails + ' fail' + (fails>1?'s':'');
+  document.getElementById('save-btn').disabled = checked===0;
+}
+
+function resetEntry() {
+  rows = {}; MACHINES.forEach(m => rows[m.id] = emptyRow());
+  expanded = null;
+  document.getElementById('h-other').value = '';
+  renderRows();
+  updateProgress();
+}
+
+async function submitAudit() {
+  const results = MACHINES
+    .filter(m => isAudited(rows[m.id]))
+    .map(m => {
+      const r = rows[m.id];
+      return {
+        auditItemId: m.id,
+        result: r.result,
+        partNo: r.partNo || null,
+        plans: r.plans || null,
+        ndt: r.ndt || null,
+        docs: r.docs || null,
+        deviation: r.deviation || null,
+        customer: r.customer || null,
+        actionTaken: r.actionTaken || null
+      };
+    });
+
+  const payload = {
+    area: document.getElementById('h-area').value.trim() || 'Sheet Metal',
+    auditDate: document.getElementById('h-date').value || todayISO(),
+    shift: document.getElementById('h-shift').value,
+    auditor: document.getElementById('h-auditor').value.trim(),
+    otherNotes: document.getElementById('h-other').value.trim() || null,
+    results
+  };
+
+  if (!payload.auditor) { toast('Enter the auditor initials first', true); return; }
+  if (results.length===0) { toast('Check at least one machine first', true); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  try {
+    await api('/api/submissions', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    toast('Shift audit saved');
+    resetEntry();
+    showView('dashboard');
+  } catch (e) {
+    toast('Save failed: ' + e.message, true);
+    btn.disabled = false;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Dashboard
+// --------------------------------------------------------------------------
+let locChart = null, sevChart = null;
+
+async function loadDashboard() {
+  const from = document.getElementById('d-from').value;
+  const to   = document.getElementById('d-to').value;
+  const qs = '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+  const body = document.getElementById('dash-body');
+
+  try {
+    const [summary, failures] = await Promise.all([
+      api('/api/dashboard/summary' + qs),
+      api('/api/dashboard/failures' + qs)
+    ]);
+    renderDashboard(summary, failures);
+  } catch (e) {
+    body.innerHTML = '<div class="card clean">Could not load the dashboard.<br>' + esc(e.message) + '</div>';
+  }
+}
+
+function renderDashboard(s, failures) {
+  const body = document.getElementById('dash-body');
+
+  if (!s || s.shiftsLogged === 0) {
+    if (locChart) { locChart.destroy(); locChart=null; }
+    if (sevChart) { sevChart.destroy(); sevChart=null; }
+    body.innerHTML =
+      '<div class="empty"><div class="empty-mark">&#9636;</div>' +
+      '<h2>No shifts in this range</h2>' +
+      '<p>Complete a shift audit and it lands here as live pass rates, a severity-ranked failure board, and area coverage.</p>' +
+      '<div class="empty-actions"><button class="primary" onclick="showView(\'entry\')">Start an audit</button></div></div>';
+    return;
+  }
+
+  const passTone = s.passRate >= 90 ? 'green' : 'red';
+  const kpis = [
+    ['Shifts logged', s.shiftsLogged, ''],
+    ['Line checks', s.totalChecks, ''],
+    ['Pass rate', s.passRate + '%', passTone],
+    ['Open failures', s.failCount, s.failCount>0 ? 'red':'green']
+  ];
+
+  const failBoard = (failures && failures.length)
+    ? '<div class="fail-list">' + failures.map(f => {
+        const sev = SEV[f.severity] || SEV[1];
+        return '<div class="fail"><div class="sev-tag '+sev.tone+'">SEV '+sev.label+'</div>' +
+          '<div class="fail-body"><div class="fail-top">' +
+            '<span class="fail-name">'+esc(f.machineName)+ (f.specialMeasures?' <span class="xx">XX</span>':'') +'</span>' +
+            '<span class="fail-when">'+esc(f.auditDate)+' &middot; '+esc(f.shift)+'</span></div>' +
+          '<div class="fail-dev">'+esc(f.deviation || 'Marked NOK — no deviation note')+'</div>' +
+          '<div class="fail-tags">' +
+            (f.partNo ? '<span class="mono tag">'+esc(f.partNo)+'</span>' : '') +
+            '<span class="tag">'+esc(f.location)+'</span>' +
+            (f.customer ? '<span class="tag">'+esc(f.customer)+'</span>' : '') +
+            (f.actionTaken ? '<span class="tag act">'+esc(f.actionTaken)+'</span>' : '') +
+            (f.plans==='NOK' ? '<span class="tag warn">Plans</span>' : '') +
+            (f.ndt==='NOK'   ? '<span class="tag warn">NDT</span>'   : '') +
+            (f.docs==='NOK'  ? '<span class="tag warn">Docs</span>'  : '') +
+          '</div></div></div>';
+      }).join('') + '</div>'
+    : '<div class="clean">No failures recorded in this range. All checked line items passed.</div>';
+
+  const recent = (s.recentShifts || []).map(r =>
+    '<div class="rec"><div class="rec-main"><strong>'+esc(r.auditDate)+'</strong> &middot; '+esc(r.shift) +
+    (r.auditor ? ' &middot; '+esc(r.auditor) : '') + '</div>' +
+    '<div class="rec-stats"><span>'+r.checked+'/'+(MACHINES.length||59)+'</span>' +
+    '<span class="'+(r.fails?'bad':'good')+'">'+(r.fails ? r.fails+' fail' : 'clean')+'</span></div></div>').join('');
+
+  body.innerHTML =
+    '<div class="kpi-row">' + kpis.map(([lbl,val,tone]) =>
+      '<div class="kpi '+tone+'"><div class="kpi-val">'+val+'</div><div class="kpi-lbl">'+lbl+'</div></div>').join('') + '</div>' +
+    '<div class="dash-grid">' +
+      '<section class="card board"><div class="card-hd"><h3>Failure board</h3><span class="hd-note">Severity 3 first</span></div>'+failBoard+'</section>' +
+      '<div class="side">' +
+        '<section class="card"><div class="card-hd"><h3>Pass rate by area</h3></div><div class="chart-wrap"><canvas id="locChart"></canvas></div></section>' +
+        '<section class="card"><div class="card-hd"><h3>Failures by severity</h3></div><div class="chart-wrap"><canvas id="sevChart"></canvas></div></section>' +
+        '<section class="card recent"><div class="card-hd"><h3>Recent shifts</h3></div>'+(recent||'<div class="clean">None</div>')+'</section>' +
+      '</div>' +
+    '</div>';
+
+  drawCharts(s);
+}
+
+function drawCharts(s) {
+  const commonH = { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} }, animation:false };
+
+  if (locChart) locChart.destroy();
+  locChart = new Chart(document.getElementById('locChart'), {
+    type:'bar',
+    data:{ labels: s.passByLocation.map(l => l.location),
+      datasets:[{ data: s.passByLocation.map(l => l.rate),
+        backgroundColor: s.passByLocation.map(l => l.rate>=90 ? '#15803d' : '#b91c1c') }] },
+    options: Object.assign({}, commonH, {
+      scales:{ x:{ min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => c.parsed.x+'% ('+s.passByLocation[c.dataIndex].pass+'/'+s.passByLocation[c.dataIndex].total+')' } } }
+    })
+  });
+
+  const sevColors = { 3:'#b91c1c', 2:'#b45309', 1:'#15803d' };
+  if (sevChart) sevChart.destroy();
+  sevChart = new Chart(document.getElementById('sevChart'), {
+    type:'bar',
+    data:{ labels: s.passBySeverity.map(x => 'Sev '+x.severity),
+      datasets:[{ data: s.passBySeverity.map(x => x.fail),
+        backgroundColor: s.passBySeverity.map(x => sevColors[x.severity] || '#64748b') }] },
+    options: Object.assign({}, commonH, {
+      scales:{ x:{ min:0, beginAtZero:true, ticks:{ precision:0 } } },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => c.parsed.x+' of '+s.passBySeverity[c.dataIndex].total+' failed' } } }
+    })
+  });
+}
+
+// --------------------------------------------------------------------------
+// Filter chip wiring + init
+// --------------------------------------------------------------------------
+document.getElementById('filter-chips').addEventListener('click', e => {
+  const btn = e.target.closest('.chip'); if (!btn) return;
+  if (btn.dataset.loc) {
+    filter.loc = btn.dataset.loc;
+    document.querySelectorAll('#filter-chips [data-loc]').forEach(b => b.classList.toggle('on', b===btn));
+  } else if (btn.dataset.flag) {
+    filter.flag = btn.dataset.flag;
+    document.querySelectorAll('#filter-chips [data-flag]').forEach(b => b.classList.toggle('on', b===btn));
+  }
+  renderRows();
+});
+
+document.getElementById('h-date').value = todayISO();
+document.getElementById('d-from').value = daysAgoISO(30);
+document.getElementById('d-to').value = todayISO();
+loadItems();
+</script>
+</body>
+</html>
