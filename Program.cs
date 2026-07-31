@@ -2,6 +2,10 @@ using QualityAudit.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Teach Dapper how to bind/read DateOnly (SQL 'date'). Without this, DateOnly
+// parameters on the dashboard date-range queries throw at execution time.
+Dapper.SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
+
 // MVC controllers for the /api endpoints. System.Text.Json defaults to camelCase,
 // which matches the JSON shapes the frontend expects.
 builder.Services.AddControllers();
