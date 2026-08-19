@@ -1,68 +1,83 @@
-# RittalQualityAudit — Sheet Metal Shift Audit (QA 343-31)
+# RittalQualityAudit — Quality Audit (QA 343-31) · v2
 
 Digital replacement for the paper QA 343-31 sheet. ASP.NET Core 8 Web API with a
-single-page HTML/JS frontend. No React, no npm build step, no Entity Framework —
-Dapper over `Microsoft.Data.SqlClient`, consistent with the TL portal.
+single-page HTML/JS frontend. **EF Core** over the existing `RittalQualityAudit`
+database (no Dapper, no Entity Framework migrations) — consistent with the TL Portal.
+
+## What v2 changed
+
+- **Severity is weekly, not fixed.** The QEs reset each machine's RAG level every Monday
+  (`SeverityAssignments`). Live severity comes from that; `AuditItems.DefaultSeverity` is a
+  fallback only. When an audit is saved, each result stores `SeverityAtAudit` — a **snapshot**
+  of that week's severity — so changing this week's RAG never rewrites last week's numbers.
+- **Departments** (Sheet Metal, Assembly, …) — the machine list is department-scoped.
+- **Structured failures.** `NOT_OK` requires a `FailureMode` from a dropdown; `NOT_AUDITED`
+  requires a reason. Enforced client-side (blocks save, highlights the row) and server-side (400).
+- **Severity drives frequency and depth.** `SeverityLevels` carries `ChecksPerWeek`
+  (compliance target), `RequiresCritDims`, `RequiresQmIpVersion`, and the `Instruction` — all data.
+- **WeekStarting** is always the Monday of the audit date, computed server-side, never trusted from the client.
 
 ## Project layout
 
 ```
-Program.cs                     minimal host: controllers + static files
-appsettings.json               connection string
-Controllers/
-  AuditItemsController.cs       GET  /api/audit-items
-  SubmissionsController.cs      POST /api/submissions
-  DashboardController.cs        GET  /api/dashboard/summary, /api/dashboard/failures
-Models/                         request/response shapes
-Services/DatabaseService.cs     all Dapper queries
-wwwroot/index.html              the whole frontend (entry form + dashboard)
+Program.cs                     host: EF Core + controllers + static files
+appsettings.json               connection string (key: RittalQualityAudit)
+Data/QualityAuditContext.cs     maps entities + 6 views onto the existing schema
+Models/Entities.cs              Department, AuditItem, SeverityLevel, SeverityAssignment,
+                                FailureMode, NotAuditedReason, Submission, Result, AuditUser
+Models/Views.cs                 keyless entities for the vw_* views
+Models/Dtos.cs                  request + response shapes
+Services/WeekHelper.cs          Monday-of maths
+Services/RangeHelper.cs         date-range defaulting (last 30 days)
+Services/UserContext.cs         pluggable identity + IsAdmin check (no auth yet)
+Controllers/                    Departments, Form, Submissions, Dashboard, Admin
+wwwroot/index.html              the whole frontend (4 tabs)
 ```
 
-## Database
-
-The `RittalQualityAudit` database on **CSMSVR02** already exists (tables
-`AuditItems`, `Submissions`, `Results` plus the `vw_*` views). This app only
-connects and queries — it never creates or migrates schema.
-
-Connection string lives in `appsettings.json`:
-
-```
-Server=CSMSVR02;Database=RittalQualityAudit;Trusted_Connection=True;TrustServerCertificate=True;
-```
-
-## Run locally
-
-```
-dotnet restore
-dotnet run
-```
-
-Then open the URL shown (e.g. http://localhost:5000). The machine list is loaded
-from the database at page load — nothing is hardcoded in the HTML, so retiring or
-adding a machine is a data change in `dbo.AuditItems` (set `IsActive = 0` to retire).
-
-## Publish to IIS (csm-srv-16)
-
-```
-dotnet publish -c Release -o publish
-```
-
-Copy the `publish/` folder to the site on csm-srv-16 and point the IIS app pool
-at it (No Managed Code, same as the TL portal). The app pool identity needs
-`Trusted_Connection` access to `RittalQualityAudit` on CSMSVR02.
-
-## API summary
+## API
 
 | Method | Route | Purpose |
 | ------ | ----- | ------- |
-| GET  | `/api/audit-items` | Active audit items, ordered by `SortOrder`. |
-| POST | `/api/submissions` | Save one shift audit (header + checked results) in a transaction. |
-| GET  | `/api/dashboard/summary?from=&to=` | KPIs, pass-rate breakdowns, recent shifts. |
-| GET  | `/api/dashboard/failures?from=&to=` | Failure board from `vw_Failures`, severity 3 first. |
+| GET  | `/api/departments` | Active departments. |
+| GET  | `/api/form/{departmentId}` | Everything the entry form is built from: machines (live severity), severity rules, failure modes, reasons. |
+| POST | `/api/submissions` | Save one shift audit. Computes WeekStarting, snapshots SeverityAtAudit, validates NOT_OK/NOT_AUDITED, one transaction. |
+| GET  | `/api/submissions?from=&to=&departmentId=&shift=` | History list. |
+| GET  | `/api/submissions/{id}` | Full read-only detail. |
+| GET  | `/api/dashboard/summary?departmentId=&weekStarting=` | KPIs, compliance-vs-target, this week vs last. |
+| GET  | `/api/dashboard/failures?departmentId=&weekStarting=` | Failure board (severity 3 first). |
+| GET  | `/api/dashboard/by-customer?departmentId=&weekStarting=` | Fail rate by customer. |
+| GET  | `/api/dashboard/failure-modes?departmentId=&weekStarting=` | Failure-mode breakdown (pie). |
+| GET  | `/api/dashboard/overview?departmentId=&months=12` | Rolling monthly pass/fail. |
+| GET/POST | `/api/admin/severities?weekStarting=&departmentId=` | Read / bulk-upsert the week's RAG. |
+| GET/POST/PUT | `/api/admin/audit-items` | Add / edit / retire machines (soft delete). |
+| GET/POST/PUT | `/api/admin/failure-modes` | Add / edit / retire failure modes. |
 
-`from`/`to` default to the last 30 days when omitted.
+## Admin access (pluggable, no auth yet)
 
-> Note: the `vw_PassRateBySeverity` / `vw_PassRateByLocation` views aggregate across
-> all history with no date column, so the date-ranged `summary` endpoint computes
-> the same OK/NOK breakdown directly from the base tables. `vw_Failures` exposes
-> `AuditDate`, so the failure board is served straight from that view.
+`Services/UserContext.cs` resolves the current user from an `X-Username` header today and
+checks `AuditUsers.IsAdmin`. With **no** username supplied it allows access (there is no auth
+yet, same as the TL Portal at this stage) so the QE team isn't locked out. When Windows Auth
+lands, only `UserContext` changes. The Admin tab sends the username you type as `X-Username`.
+
+## Run locally / publish
+
+```
+dotnet restore && dotnet run          # http://localhost:5000
+dotnet publish -c Release -o publish   # copy to IIS on csm-srv-16 (No Managed Code app pool)
+```
+
+## Known placeholders (per the schema notes)
+
+- `FailureModes` holds placeholder rows — swap them in the Admin tab, no code change.
+- `SeverityLevels.ChecksPerWeek` assumes 3 shifts × 5 days — adjust when confirmed.
+- `Results.SerialNo` is provisional — built and optional.
+- No authentication yet — see the pluggable seam above.
+
+## Dashboard notes
+
+- Compliance-vs-target, week-over-week, failures, by-customer, and failure-mode breakdown come
+  from the pre-built views. Pass-rate-by-severity is aggregated from `vw_WeeklyCompliance`;
+  pass-rate-by-location is computed from base rows for the week (no view provides it), with
+  `Ph 1 & 3` machines counting toward both Ph1 and Ph3.
+- Pie / customer charts are click-to-filter the failure board. "Wall display" enlarges KPIs
+  and charts and hides navigation for a QA-office TV.

@@ -1,18 +1,20 @@
+using Microsoft.EntityFrameworkCore;
+using QualityAudit.Data;
 using QualityAudit.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Teach Dapper how to bind/read DateOnly (SQL 'date'). Without this, DateOnly
-// parameters on the dashboard date-range queries throw at execution time.
-Dapper.SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
+// EF Core over the existing RittalQualityAudit v2 database. We never migrate — the
+// context maps onto tables and views that already exist (see QualityAuditContext).
+builder.Services.AddDbContext<QualityAuditContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("RittalQualityAudit")));
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<UserContext>();
 
 // MVC controllers for the /api endpoints. System.Text.Json defaults to camelCase,
 // which matches the JSON shapes the frontend expects.
 builder.Services.AddControllers();
-
-// Single data-access service (Dapper over Microsoft.Data.SqlClient). Stateless —
-// it opens a fresh connection per call — so a singleton is fine.
-builder.Services.AddSingleton<DatabaseService>();
 
 var app = builder.Build();
 

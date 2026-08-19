@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sheet Metal Shift Audit — QA 343-31</title>
+<title>Quality Audit — QA 343-31</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#eef1f5; --panel:#fff; --ink:#16202e; --muted:#647084; --faint:#8b97a8;
   --line:#dbe1ea; --steel:#1c3d5a; --steel2:#24506f; --blue:#2f6f9f;
   --green:#15803d; --green-bg:#dcfce7; --amber:#b45309; --amber-bg:#fdeecb;
-  --red:#b91c1c; --red-bg:#fde4e4; --grey-bg:#eef1f5;
+  --red:#b91c1c; --red-bg:#fde4e4; --grey:#64748b; --grey-bg:#eef1f5;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -19,7 +19,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-seri
 .mono{font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;}
 button{font:inherit}
 
-/* header */
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
   gap:16px;padding:14px 20px;background:var(--steel);color:#fff;flex-wrap:wrap;box-shadow:0 1px 0 rgba(0,0,0,.15);}
 .brand{display:flex;align-items:center;gap:12px}
@@ -29,24 +28,34 @@ button{font:inherit}
 .sub{font-size:11.5px;color:#b7c6d6;margin-top:1px}
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.08);padding:4px;border-radius:9px}
 .tabs button{border:0;background:transparent;color:#cdd8e4;font-size:13px;font-weight:600;
-  padding:7px 14px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:7px}
+  padding:7px 14px;border-radius:6px;cursor:pointer}
 .tabs button.on{background:#fff;color:var(--steel)}
-.tabs em{font-style:normal;font-size:11px;background:var(--blue);color:#fff;border-radius:20px;padding:1px 7px;font-weight:700}
-.tabs button.on em{background:var(--steel);color:#fff}
 
-.pane{max-width:1080px;margin:0 auto;padding:20px 18px 120px}
+.pane{max-width:1120px;margin:0 auto;padding:20px 18px 120px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(20,30,45,.04)}
 .hidden{display:none !important}
+h3{margin:0 0 10px;font-size:14px;font-weight:700}
+.muted{color:var(--muted)}
 
-/* entry header */
-.head-card{margin-bottom:14px}
-.head-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px}
 .field{display:flex;flex-direction:column;gap:5px}
 .field>span{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
 .field input,.field select,.field textarea,.subfield input{
   font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;color:var(--ink);width:100%}
 .field textarea{resize:vertical}
-.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue);outline-offset:0;border-color:transparent}
+.readonly-val{font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#f4f7fb;white-space:pre-wrap;min-height:20px}
+
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--amber-bg);
+  border:1px solid #eacb8a;color:#7c4a06;padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:13.5px;font-weight:600}
+.banner .b-actions{display:flex;gap:8px;flex-shrink:0}
+.banner button{border:1px solid #d8b477;background:#fff;color:#7c4a06;font-weight:700;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer}
+.inline-err{background:var(--red-bg);border:1px solid #e7a3a3;color:var(--red);padding:11px 14px;border-radius:10px;margin-bottom:12px;font-size:13.5px;font-weight:600}
+
+.head-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:12px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.leg{flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;border-left-width:5px}
+.leg .leg-hd{font-weight:700;font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.leg .leg-freq{font-size:11px;color:var(--muted);font-weight:600}
+.leg .leg-ins{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35}
 
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 10px;flex-wrap:wrap}
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -56,50 +65,50 @@ button{font:inherit}
 .ghost{border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer}
 .ghost:hover{background:#f4f7fb}
 .ghost.danger{color:var(--red);border-color:#f0c9c9}
+.primary{border:0;background:var(--steel);color:#fff;font-size:14px;font-weight:700;padding:10px 20px;border-radius:8px;cursor:pointer}
+.primary:hover{background:var(--steel2)}
+.primary:disabled{opacity:.4;cursor:not-allowed}
 
-/* machine rows */
 .rows{display:flex;flex-direction:column;gap:7px}
-.row{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap;transition:border-color .12s}
+.row{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
 .row.state-nok{border-color:#e7a3a3;background:#fffafa}
 .row.state-todo{background:#fcfdfe}
+.row.invalid{border-color:var(--red);box-shadow:0 0 0 2px var(--red-bg)}
 .spine{width:6px;flex-shrink:0}
-.spine.green{background:var(--green)} .spine.amber{background:var(--amber)} .spine.red{background:var(--red)}
 .row-main{display:flex;align-items:center;gap:12px;padding:11px 14px;flex:1;min-width:0}
 .row-id{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--faint);width:26px;text-align:right;flex-shrink:0}
 .row-name{flex:1;min-width:0}
-.nm{font-size:14.5px;font-weight:600;line-height:1.2;display:flex;align-items:center;gap:8px}
+.nm{font-size:14.5px;font-weight:600;line-height:1.2;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .xx{font-size:10px;font-weight:800;color:#fff;background:var(--red);border-radius:4px;padding:1px 5px;letter-spacing:.5px}
-.meta{display:flex;gap:6px;margin-top:5px}
-.pill{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:5px}
-.pill.green{color:var(--green);background:var(--green-bg)}
-.pill.amber{color:var(--amber);background:var(--amber-bg)}
-.pill.red{color:var(--red);background:var(--red-bg)}
+.meta{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.pill{font-size:10.5px;font-weight:700;letter-spacing:.3px;padding:3px 8px;border-radius:5px;color:#fff}
 .pill.grey{color:var(--muted);background:var(--grey-bg)}
 
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f4f7fb;flex-shrink:0}
-.seg-btn{border:0;background:transparent;font-weight:700;color:var(--muted);cursor:pointer;border-right:1px solid var(--line)}
-.seg-md .seg-btn{font-size:12.5px;padding:8px 13px}
-.seg-sm .seg-btn{font-size:11px;padding:5px 9px}
+.seg-btn{border:0;background:transparent;font-weight:700;color:var(--muted);cursor:pointer;border-right:1px solid var(--line);white-space:nowrap}
+.seg-md .seg-btn{font-size:12.5px;padding:9px 14px}
+.seg-sm .seg-btn{font-size:11px;padding:6px 10px}
 .seg-btn:last-child{border-right:0}
-.seg-btn.on.green{background:var(--green);color:#fff}
-.seg-btn.on.red{background:var(--red);color:#fff}
-.seg-btn.on.grey{background:#64748b;color:#fff}
+.seg-btn.on{color:#fff}
+.seg-btn.ro{cursor:default}
 .disc{width:32px;height:32px;flex-shrink:0;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:18px;font-weight:600;color:var(--muted);cursor:pointer;line-height:1}
 .disc.on{background:var(--steel);color:#fff;border-color:var(--steel)}
 
-.row-note{width:100%;padding:0 14px 11px 52px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.note-part{font-size:12px;color:var(--blue)}
-.note-dev{font-size:12.5px;color:var(--muted)}
-.row-detail{width:100%;padding:4px 16px 16px 52px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px;margin-top:2px}
-.sub-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.row-detail{width:100%;padding:6px 16px 16px 52px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px;margin-top:2px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.sub-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .subfield{display:flex;flex-direction:column;gap:6px}
 .subfield>span{font-size:11px;font-weight:600;color:var(--muted)}
-.detail-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.ins-note{font-size:12px;color:var(--muted);background:#f4f7fb;border-radius:8px;padding:8px 10px;line-height:1.4}
+.req-flag{font-size:11px;color:var(--red);font-weight:700}
+.ro-detail{width:100%;padding:0 14px 12px 52px;display:flex;flex-direction:column;gap:6px}
+.ro-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--grey-bg);border-radius:5px;padding:3px 8px}
+.tag.act{color:var(--steel);background:#e3edf5}
+.tag.warn{color:var(--red);background:var(--red-bg)}
 .other-card{margin-top:14px}
+.list-empty,.clean{padding:26px;text-align:center;color:var(--muted);font-size:14px}
 
-.list-empty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
-
-/* sticky footer */
 .footbar{position:fixed;bottom:0;left:0;right:0;z-index:15;background:#fff;border-top:1px solid var(--line);
   padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -2px 10px rgba(20,30,45,.05)}
 .progress{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
@@ -109,68 +118,108 @@ button{font:inherit}
 .pnum strong{color:var(--ink);font-size:15px}
 .fail-count{color:var(--red);font-weight:700;margin-left:10px}
 .foot-actions{display:flex;gap:8px}
-.primary{border:0;background:var(--steel);color:#fff;font-size:14px;font-weight:700;padding:10px 20px;border-radius:8px;cursor:pointer}
-.primary:hover{background:var(--steel2)}
-.primary:disabled{opacity:.4;cursor:not-allowed}
 
-.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#fff;
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);z-index:40;background:var(--ink);color:#fff;
   padding:11px 20px;border-radius:9px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .toast.err{background:var(--red)}
 
-/* dashboard */
-.dash-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.range{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
-.range .field{gap:3px}
-.range .field>span{font-size:10px}
-.range .field input{padding:7px 9px;font-size:13px}
+.confirm{max-width:520px;margin:26px auto;text-align:center}
+.confirm .tick{width:64px;height:64px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px;font-weight:800}
+.confirm h2{margin:0 0 6px;font-size:22px}
+.confirm .c-meta{color:var(--muted);font-size:14px}
+.c-stats{display:flex;gap:10px;justify-content:center;margin:18px 0 22px;flex-wrap:wrap}
+.c-pill{font-weight:700;border-radius:8px;padding:8px 14px;font-size:14px}
+.c-pill.ok{background:var(--green-bg);color:var(--green)}
+.c-pill.bad{background:var(--red-bg);color:var(--red)}
+.c-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+.dept-choose{display:flex;flex-direction:column;gap:12px;max-width:520px;margin:30px auto;text-align:center}
+.dept-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.dept-btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:20px 28px;font-size:16px;font-weight:700;cursor:pointer;min-width:180px}
+.dept-btn:hover{border-color:var(--steel);background:#f4f7fb}
+
+.selrow{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.selrow .field{gap:3px}.selrow .field>span{font-size:10px}
+.selrow .field input,.selrow .field select{padding:7px 9px;font-size:13px}
+
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
 .kpi-val{font-size:30px;font-weight:800;letter-spacing:-.5px;font-family:ui-monospace,Menlo,monospace}
 .kpi-lbl{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.kpi-delta{font-size:11.5px;font-weight:700;margin-top:4px}
 .kpi.red .kpi-val{color:var(--red)} .kpi.green .kpi-val{color:var(--green)}
+.up{color:var(--green)} .down{color:var(--red)}
 
 .dash-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
-.card-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
-.card-hd h3{margin:0;font-size:14px;font-weight:700}
-.hd-note{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
 .side{display:flex;flex-direction:column;gap:14px}
-.chart-wrap{position:relative;height:150px}
+.chart-wrap{position:relative;height:190px}
+.card-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.hd-note{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+
+.comp-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.comp-row:last-child{border-bottom:0}
+.comp-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.comp-target{font-family:ui-monospace,Menlo,monospace;font-weight:700}
+.comp-target.under{color:var(--red)} .comp-target.met{color:var(--green)}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 
 .fail-list{display:flex;flex-direction:column;gap:9px}
 .fail{display:flex;gap:11px;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fffafa}
-.sev-tag{flex-shrink:0;font-size:10.5px;font-weight:800;letter-spacing:.4px;color:#fff;border-radius:6px;padding:5px 8px;height:fit-content}
-.sev-tag.red{background:var(--red)} .sev-tag.amber{background:var(--amber)} .sev-tag.green{background:var(--green)}
+.sev-tag{flex-shrink:0;font-size:10.5px;font-weight:800;color:#fff;border-radius:6px;padding:5px 8px;height:fit-content}
 .fail-body{flex:1;min-width:0}
 .fail-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .fail-name{font-weight:700;font-size:14px}
 .fail-when{font-size:11.5px;color:var(--faint);white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
-.fail-dev{font-size:13px;color:var(--muted);margin:3px 0 7px}
+.fail-mode{font-size:12.5px;color:var(--red);font-weight:700;margin:3px 0}
 .fail-tags{display:flex;gap:6px;flex-wrap:wrap}
-.tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--grey-bg);border-radius:5px;padding:2px 8px}
-.tag.act{color:var(--steel);background:#e3edf5}
-.tag.warn{color:var(--red);background:var(--red-bg)}
-.clean{padding:20px;text-align:center;font-size:14px;color:var(--muted)}
 
-.rec{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
-.rec:last-child{border-bottom:0}
-.rec-main{font-size:13px}
-.rec-stats{display:flex;gap:10px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
-.rec-stats .good{color:var(--green)} .rec-stats .bad{color:var(--red);font-weight:700}
+.bar-row{display:flex;align-items:center;gap:10px;margin:9px 0}
+.bar-lbl{width:120px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.bar-lbl em{font-style:normal;font-size:11px;color:var(--faint);font-weight:500}
+.bar-track{flex:1;height:9px;background:#e9edf3;border-radius:20px;overflow:hidden}
+.bar-track span{display:block;height:100%;border-radius:20px}
+.bar-val{width:52px;text-align:right;font-size:13px;font-weight:700;font-family:ui-monospace,Menlo,monospace}
 
-.empty{text-align:center;padding:60px 20px;max-width:460px;margin:0 auto}
-.empty-mark{font-size:40px;color:var(--faint)}
-.empty h2{margin:12px 0 6px;font-size:20px}
-.empty p{color:var(--muted)}
-.empty-actions{display:flex;gap:10px;justify-content:center;margin-top:20px}
+.hist-table{display:flex;flex-direction:column}
+.hist-row{display:grid;grid-template-columns:120px 90px 1fr 90px 90px;gap:12px;align-items:center;padding:12px 8px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.hist-row:hover{background:#f4f7fb}
+.hist-row.hist-head{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--line);cursor:default}
+.hist-row.hist-head:hover{background:transparent}
+.hist-row .h-date{font-weight:700}
+.hist-row .good{color:var(--green);font-weight:700}.hist-row .bad{color:var(--red);font-weight:700}
+.back-link{background:none;border:0;color:var(--blue);font-weight:600;cursor:pointer;font-size:13px;padding:0;margin-bottom:12px}
+.detail-head{display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;margin:4px 0 14px}
+.detail-head h2{margin:0;font-size:20px}
+
+.admin-sec{margin-bottom:18px}
+.adm-item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.adm-sev-btns{display:inline-flex;gap:4px}
+.rag{width:34px;height:30px;border-radius:7px;border:1px solid var(--line);background:#fff;font-weight:800;cursor:pointer;color:var(--muted)}
+.rag.on{color:#fff;border-color:transparent}
+.changed{font-size:11px;color:var(--amber);font-weight:700;margin-left:6px}
+.adm-grid{display:grid;grid-template-columns:2fr 1fr 1fr auto auto auto;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.adm-grid input,.adm-grid select{padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:7px;background:#fbfcfe;width:100%}
+.sm-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.sm-btn.danger{color:var(--red);border-color:#f0c9c9}
+.retired{opacity:.5}
+
+/* TV wall-display mode */
+body.tv .top .tabs, body.tv .selrow .field, body.tv #dash-tvbtn{display:none}
+body.tv .kpi-val{font-size:52px}
+body.tv .kpi-lbl{font-size:16px}
+body.tv .chart-wrap{height:280px}
+body.tv .pane{max-width:1600px}
 
 @media (max-width:820px){
   .head-grid{grid-template-columns:1fr 1fr}
   .dash-grid{grid-template-columns:1fr}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
   .detail-grid,.sub-checks{grid-template-columns:1fr}
-  .row-detail,.row-note{padding-left:16px}
+  .row-detail,.ro-detail{padding-left:16px}
   .row-main{flex-wrap:wrap}
-  .seg-md{order:3;width:100%}.seg-md .seg-btn{flex:1}
+  .seg-md{order:3;width:100%}.seg-md .seg-btn{flex:1;text-align:center}
+  .hist-row{grid-template-columns:1fr auto auto}.hist-row .h-auditor{display:none}
+  .adm-grid{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -178,64 +227,78 @@ button{font:inherit}
 
 <header class="top">
   <div class="brand">
-    <div class="mark" aria-hidden="true">
-      <span style="background:#c8102e"></span>
-      <span style="background:#2f6f9f"></span>
-      <span style="background:#15803d"></span>
-    </div>
-    <div>
-      <div class="ttl">Sheet Metal Shift Audit</div>
-      <div class="sub">QA 343-31 &middot; digital line check &amp; dashboard</div>
-    </div>
+    <div class="mark" aria-hidden="true"><span style="background:#c8102e"></span><span style="background:#2f6f9f"></span><span style="background:#15803d"></span></div>
+    <div><div class="ttl">Quality Audit</div><div class="sub">QA 343-31 &middot; weekly RAG line check &amp; dashboard</div></div>
   </div>
   <nav class="tabs">
-    <button id="tab-entry" class="on" onclick="showView('entry')">New audit</button>
+    <button id="tab-entry" class="on" onclick="showView('entry')">New Audit</button>
     <button id="tab-dash" onclick="showView('dashboard')">Dashboard</button>
+    <button id="tab-history" onclick="showView('history')">History</button>
+    <button id="tab-admin" onclick="showView('admin')">Admin</button>
   </nav>
 </header>
 
-<!-- ============================ ENTRY ============================ -->
+<!-- ===================== NEW AUDIT ===================== -->
 <main id="view-entry" class="pane">
-  <section class="card head-card">
-    <div class="head-grid">
-      <label class="field"><span>Area</span><input id="h-area" value="Sheet Metal" /></label>
-      <label class="field"><span>Date</span><input id="h-date" type="date" /></label>
-      <label class="field"><span>Shift</span>
-        <select id="h-shift"><option>Early</option><option>Late</option><option>Nights</option></select>
-      </label>
-      <label class="field"><span>Auditor</span><input id="h-auditor" placeholder="Initials" /></label>
-    </div>
-  </section>
-
-  <div class="toolbar">
-    <div class="chips" id="filter-chips">
-      <button class="chip on" data-loc="all">All areas</button>
-      <button class="chip" data-loc="Ph1">Ph1</button>
-      <button class="chip" data-loc="Ph3">Ph3</button>
-      <span class="chip-div"></span>
-      <button class="chip on" data-flag="all">Everything</button>
-      <button class="chip" data-flag="todo">Not checked</button>
-      <button class="chip" data-flag="nok">Failures</button>
-      <button class="chip" data-flag="sev3">Severity 3</button>
-    </div>
-    <button class="ghost" onclick="markShownOK()">Mark shown OK</button>
+  <div id="dept-choose" class="dept-choose">
+    <h2>Which area are you auditing?</h2>
+    <div id="dept-btns" class="dept-btns"><div class="muted">Loading departments…</div></div>
   </div>
 
-  <section class="rows" id="rows"></section>
+  <div id="entry-main" class="hidden">
+    <div id="draft-banner" class="banner hidden"></div>
+    <div id="entry-error" class="inline-err hidden"></div>
 
-  <section class="card other-card">
-    <label class="field"><span>Other daily issues &amp; tasks</span>
-      <textarea id="h-other" rows="2" placeholder="Free notes for the shift"></textarea>
-    </label>
-  </section>
+    <section class="card head-card">
+      <div class="head-grid">
+        <label class="field"><span>Department</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="h-dept" readonly style="background:#eef1f5;font-weight:700" />
+            <button class="ghost" onclick="changeDepartment()">Change</button>
+          </div>
+        </label>
+        <label class="field"><span>Date</span><input id="h-date" type="date" /></label>
+        <label class="field"><span>Shift</span>
+          <select id="h-shift"><option>Early</option><option>Late</option><option>Nights</option></select>
+        </label>
+        <label class="field"><span>Auditor</span><input id="h-auditor" placeholder="Initials" /></label>
+      </div>
+      <div id="sev-legend" class="legend"></div>
+    </section>
+
+    <div class="toolbar">
+      <div class="chips" id="filter-chips">
+        <button class="chip on" data-sev="all">All levels</button>
+        <button class="chip" data-sev="3">Red</button>
+        <button class="chip" data-sev="2">Amber</button>
+        <button class="chip" data-sev="1">Green</button>
+        <span class="chip-div"></span>
+        <button class="chip on" data-loc="all">All areas</button>
+        <button class="chip" data-loc="Ph1">Ph1</button>
+        <button class="chip" data-loc="Ph3">Ph3</button>
+        <span class="chip-div"></span>
+        <button class="chip on" data-flag="all">Everything</button>
+        <button class="chip" data-flag="todo">Not checked</button>
+        <button class="chip" data-flag="nok">Failures</button>
+      </div>
+      <button class="ghost" onclick="markShownOK()">Mark shown OK</button>
+    </div>
+
+    <section class="rows" id="rows"></section>
+
+    <section class="card other-card">
+      <label class="field"><span>Other daily issues &amp; tasks</span>
+        <textarea id="h-other" rows="2" placeholder="Free notes for the shift"></textarea>
+      </label>
+    </section>
+  </div>
 </main>
 
-<div id="footbar" class="footbar">
+<div id="footbar" class="footbar hidden">
   <div class="progress">
     <div class="pbar"><span id="pbar-fill" style="width:0%"></span></div>
     <div class="pnum"><strong id="checked-count">0</strong>/<span id="total-count">0</span> checked
-      <span id="fail-count" class="fail-count hidden"></span>
-    </div>
+      <span id="fail-count" class="fail-count hidden"></span></div>
   </div>
   <div class="foot-actions">
     <button class="ghost" onclick="resetEntry()">Reset</button>
@@ -243,373 +306,668 @@ button{font:inherit}
   </div>
 </div>
 
-<!-- ============================ DASHBOARD ============================ -->
+<!-- ===================== CONFIRM ===================== -->
+<main id="view-confirm" class="pane hidden"><div id="confirm-body"></div></main>
+
+<!-- ===================== DASHBOARD ===================== -->
 <main id="view-dashboard" class="pane hidden">
-  <div class="dash-top">
-    <div class="range">
-      <label class="field"><span>From</span><input id="d-from" type="date" /></label>
-      <label class="field"><span>To</span><input id="d-to" type="date" /></label>
-      <button class="ghost" onclick="loadDashboard()">Refresh</button>
-    </div>
+  <div class="selrow">
+    <label class="field"><span>Department</span><select id="d-dept" onchange="loadDashboard()"></select></label>
+    <label class="field"><span>Week of (any day)</span><input id="d-week" type="date" onchange="loadDashboard()" /></label>
+    <button class="ghost" onclick="loadDashboard()">Refresh</button>
+    <button id="dash-tvbtn" class="ghost" onclick="toggleTv()">Wall display</button>
   </div>
   <div id="dash-body"></div>
 </main>
 
+<!-- ===================== HISTORY ===================== -->
+<main id="view-history" class="pane hidden">
+  <div class="selrow">
+    <label class="field"><span>Department</span><select id="hist-dept"></select></label>
+    <label class="field"><span>From</span><input id="hist-from" type="date" /></label>
+    <label class="field"><span>To</span><input id="hist-to" type="date" /></label>
+    <button class="ghost" onclick="loadHistory()">Apply</button>
+    <button class="ghost" onclick="showOverview()">12-month overview</button>
+  </div>
+  <section class="card"><div id="history-body"></div></section>
+</main>
+<main id="view-history-detail" class="pane hidden"><div id="history-detail-body"></div></main>
+<main id="view-overview" class="pane hidden">
+  <button class="back-link" onclick="showView('history')">&larr; Back to history</button>
+  <section class="card"><div class="card-hd"><h3>12-month pass / fail trend</h3></div><div class="chart-wrap" style="height:300px"><canvas id="ovChart"></canvas></div></section>
+</main>
+
+<!-- ===================== ADMIN ===================== -->
+<main id="view-admin" class="pane hidden">
+  <section class="card admin-sec">
+    <div class="selrow" style="margin-bottom:0">
+      <label class="field"><span>Your username (for admin check)</span><input id="adm-user" placeholder="domain account" oninput="adminUser=this.value.trim()" /></label>
+      <span class="muted" style="font-size:12px">No auth yet — leave blank in dev. Enforced once names are loaded into AuditUsers.</span>
+    </div>
+  </section>
+
+  <section class="card admin-sec">
+    <div class="card-hd"><h3>Weekly severity review</h3></div>
+    <div class="selrow">
+      <label class="field"><span>Department</span><select id="adm-sev-dept" onchange="loadSeverityReview()"></select></label>
+      <label class="field"><span>Week starting (Monday)</span><input id="adm-sev-week" type="date" onchange="loadSeverityReview()" /></label>
+      <button class="ghost" onclick="loadSeverityReview()">Load</button>
+      <button class="primary" onclick="saveSeverityReview()">Save all</button>
+    </div>
+    <div id="adm-sev-body"><div class="clean">Pick a week and load.</div></div>
+  </section>
+
+  <section class="card admin-sec">
+    <div class="card-hd"><h3>Machines</h3></div>
+    <div class="selrow"><label class="field"><span>Department</span><select id="adm-mac-dept" onchange="loadMachines()"></select></label>
+      <button class="ghost" onclick="loadMachines()">Load</button></div>
+    <div id="adm-mac-body"></div>
+  </section>
+
+  <section class="card admin-sec">
+    <div class="card-hd"><h3>Failure modes <span class="hd-note">placeholder rows — swap here, no code change</span></h3></div>
+    <div id="adm-fm-body"></div>
+  </section>
+</main>
+
 <script>
-// --------------------------------------------------------------------------
-// Config + helpers
-// --------------------------------------------------------------------------
-const SEV = { 1:{tone:'green',label:'1'}, 2:{tone:'amber',label:'2'}, 3:{tone:'red',label:'3'} };
+// ==========================================================================
+// Helpers
+// ==========================================================================
+const RESULTS = [ ['OK','OK','#15803d'], ['NOT_OK','Not OK','#b91c1c'], ['NOT_AUDITED','Not Audited','#64748b'] ];
+const SUBOPTS = [ ['OK','OK','#15803d'], ['NOT_OK','Not OK','#b91c1c'], ['NA','N/A','#64748b'] ];
+const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#b45309'}, 3:{name:'Red',hex:'#b91c1c'} };
 const todayISO = () => new Date().toISOString().slice(0,10);
-const daysAgoISO = (n) => new Date(Date.now() - n*86400000).toISOString().slice(0,10);
-const esc = (s) => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const daysAgoISO = n => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const val = id => document.getElementById(id).value;
+const setVal = (id,v)=>{ document.getElementById(id).value = (v==null?'':v); };
+function mondayOfISO(iso){ const d=new Date((iso||todayISO())+'T00:00'); const off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return d.toISOString().slice(0,10); }
+function nextMondayISO(){ const m=new Date(mondayOfISO(todayISO())+'T00:00'); m.setDate(m.getDate()+7); return m.toISOString().slice(0,10); }
 
-async function api(path, opts) {
+let adminUser = '';
+async function api(path, opts){
+  opts = opts || {};
   const res = await fetch(path, opts);
-  if (!res.ok) {
-    let msg = res.statusText;
-    try { const b = await res.text(); if (b) msg = b; } catch (_) {}
-    throw new Error(msg || ('HTTP ' + res.status));
+  if(!res.ok){
+    let msg='HTTP '+res.status;
+    try{ const t=await res.text(); if(t){ try{ const j=JSON.parse(t); msg=j.error||j.title||t; }catch(_){ msg=t; } } }catch(_){}
+    throw new Error(msg);
   }
-  return res.status === 204 ? null : res.json();
+  return res.status===204 ? null : res.json();
 }
-
-function toast(msg, isErr) {
-  const t = document.createElement('div');
-  t.className = 'toast' + (isErr ? ' err' : '');
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3400);
+const adminHeaders = () => adminUser ? { 'X-Username': adminUser } : {};
+function adminApi(path, method, body){
+  return api(path, { method: method||'GET',
+    headers: Object.assign({ 'Content-Type':'application/json' }, adminHeaders()),
+    body: body!=null ? JSON.stringify(body) : undefined });
 }
+function toast(msg,isErr){ const t=document.createElement('div'); t.className='toast'+(isErr?' err':''); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3400); }
 
-// --------------------------------------------------------------------------
+// ==========================================================================
 // State
-// --------------------------------------------------------------------------
-let MACHINES = [];              // from GET /api/audit-items
-let rows = {};                  // id -> { result, partNo, plans, ndt, docs, deviation, customer, actionTaken }
-let filter = { loc:'all', flag:'all' };
+// ==========================================================================
+let DEPARTMENTS = [];
+let FORM = null;                 // /api/form/{id} response
+let SEVLEVELS = {};              // severity -> level object
+let MACHINES = [];
+let rows = {};                   // auditItemId -> row values
+let filter = { sev:'all', loc:'all', flag:'all' };
 let expanded = null;
+let currentView = 'entry';
+let lastSaved = null;
+let pendingDraft = null, draftDismissed = false, draftTimer = null;
+const DRAFT_KEY = 'qa-draft-v2';
 
-const emptyRow = () => ({ result:'', partNo:'', plans:'', ndt:'', docs:'', deviation:'', customer:'', actionTaken:'' });
+const emptyRow = () => ({ result:'', failureModeId:'', notAuditedReasonId:'', partNo:'', serialNo:'', critDims:'', qmIp:'', comment:'', customer:'', actionTaken:'' });
+const machineById = id => MACHINES.find(m => m.id===id);
+const sevInfo = s => SEVLEVELS[s] || { name:(RAG[s]||{}).name||('Sev '+s), colourHex:(RAG[s]||{}).hex||'#64748b', frequencyLabel:'', requiresCritDims:s>=2, requiresQmIpVersion:s>=3, instruction:'' };
 
-const isAudited = r => r && r.result !== '';
-const isNA  = r => r && r.result === 'NA';
-const isNOK = r => r && (r.result==='NOK' || r.plans==='NOK' || r.ndt==='NOK' || r.docs==='NOK');
-const isOK  = r => isAudited(r) && !isNA(r) && !isNOK(r);
+const isAudited = r => r && r.result!=='';
+const isFail = r => r && r.result==='NOT_OK';
+const rowState = r => isFail(r) ? 'nok' : isAudited(r) ? 'ok' : 'todo';
 
-// --------------------------------------------------------------------------
+// ==========================================================================
 // View switching
-// --------------------------------------------------------------------------
-function showView(v) {
-  document.getElementById('view-entry').classList.toggle('hidden', v!=='entry');
-  document.getElementById('footbar').classList.toggle('hidden', v!=='entry');
-  document.getElementById('view-dashboard').classList.toggle('hidden', v!=='dashboard');
-  document.getElementById('tab-entry').classList.toggle('on', v==='entry');
+// ==========================================================================
+const PANES = { entry:'view-entry', confirm:'view-confirm', dashboard:'view-dashboard', history:'view-history', historyDetail:'view-history-detail', overview:'view-overview', admin:'view-admin' };
+function showView(v){
+  currentView = v;
+  Object.values(PANES).forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById(PANES[v]).classList.remove('hidden');
+  document.getElementById('footbar').classList.toggle('hidden', !(v==='entry' && FORM));
+  document.getElementById('tab-entry').classList.toggle('on', v==='entry'||v==='confirm');
   document.getElementById('tab-dash').classList.toggle('on', v==='dashboard');
-  if (v==='dashboard') loadDashboard();
+  document.getElementById('tab-history').classList.toggle('on', v==='history'||v==='historyDetail'||v==='overview');
+  document.getElementById('tab-admin').classList.toggle('on', v==='admin');
+  if(v==='dashboard') loadDashboard();
+  if(v==='history') loadHistory();
+  if(v==='admin') loadAdmin();
+  if(v==='entry'){ checkDraft(); }
+  if(v!=='entry') window.scrollTo(0,0);
 }
 
-// --------------------------------------------------------------------------
+// ==========================================================================
+// Departments
+// ==========================================================================
+async function loadDepartments(){
+  try{
+    DEPARTMENTS = await api('/api/departments');
+    document.getElementById('dept-btns').innerHTML = DEPARTMENTS.map(d =>
+      '<button class="dept-btn" onclick="chooseDepartment('+d.id+')">'+esc(d.name)+'</button>').join('')
+      || '<div class="muted">No active departments.</div>';
+    ['d-dept','hist-dept','adm-sev-dept','adm-mac-dept'].forEach(id=>{
+      const sel=document.getElementById(id);
+      const allOpt = (id==='hist-dept') ? '<option value="">All</option>' : '';
+      sel.innerHTML = allOpt + DEPARTMENTS.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join('');
+    });
+  }catch(e){ document.getElementById('dept-btns').innerHTML='<div class="muted">Could not load departments: '+esc(e.message)+'</div>'; }
+}
+function changeDepartment(){ FORM=null; document.getElementById('entry-main').classList.add('hidden'); document.getElementById('dept-choose').classList.remove('hidden'); document.getElementById('footbar').classList.add('hidden'); }
+async function chooseDepartment(id){ await loadForm(id); }
+
+// ==========================================================================
 // Entry form
-// --------------------------------------------------------------------------
-async function loadItems() {
-  try {
-    MACHINES = await api('/api/audit-items');
-    MACHINES.forEach(m => { if (!rows[m.id]) rows[m.id] = emptyRow(); });
+// ==========================================================================
+async function loadForm(deptId){
+  try{
+    FORM = await api('/api/form/'+deptId);
+    SEVLEVELS = {}; FORM.severityLevels.forEach(l => SEVLEVELS[l.severity]=l);
+    MACHINES = FORM.machines;
+    rows = {}; MACHINES.forEach(m => rows[m.id]=emptyRow());
+    setVal('h-dept', FORM.department.name);
+    document.getElementById('h-dept').dataset.id = FORM.department.id;
     document.getElementById('total-count').textContent = MACHINES.length;
+    renderLegend();
     renderRows();
     updateProgress();
-  } catch (e) {
-    document.getElementById('rows').innerHTML =
-      '<div class="list-empty">Could not load the machine list.<br>' + esc(e.message) + '</div>';
-  }
+    document.getElementById('dept-choose').classList.add('hidden');
+    document.getElementById('entry-main').classList.remove('hidden');
+    document.getElementById('footbar').classList.remove('hidden');
+    draftDismissed = false;
+    checkDraft();
+  }catch(e){ toast('Could not load form: '+e.message, true); }
 }
 
-function visibleMachines() {
-  return MACHINES.filter(m => {
-    if (filter.loc==='Ph1' && !m.location.includes('1')) return false;
-    if (filter.loc==='Ph3' && !m.location.includes('3')) return false;
-    const r = rows[m.id];
-    if (filter.flag==='todo' && isAudited(r)) return false;
-    if (filter.flag==='nok'  && !isNOK(r))    return false;
-    if (filter.flag==='sev3' && m.severity!==3) return false;
+function renderLegend(){
+  const host=document.getElementById('sev-legend');
+  host.innerHTML = FORM.severityLevels.slice().sort((a,b)=>b.severity-a.severity).map(l =>
+    '<div class="leg" style="border-left-color:'+esc(l.colourHex)+'">' +
+      '<div class="leg-hd"><span>'+esc(l.name.toUpperCase())+'</span><span class="leg-freq">'+esc(l.frequencyLabel)+' &middot; '+l.checksPerWeek+'/wk</span></div>' +
+      '<div class="leg-ins">'+esc(l.instruction)+'</div></div>').join('');
+}
+
+function visibleMachines(){
+  return MACHINES.filter(m=>{
+    if(filter.sev!=='all' && m.severity!==+filter.sev) return false;
+    if(filter.loc==='Ph1' && !m.location.includes('1')) return false;
+    if(filter.loc==='Ph3' && !m.location.includes('3')) return false;
+    const r=rows[m.id];
+    if(filter.flag==='todo' && isAudited(r)) return false;
+    if(filter.flag==='nok' && !isFail(r)) return false;
     return true;
   });
 }
 
-function segHtml(kind, id, value, size) {
-  const opts = [ ['OK','OK','green'], ['NOK','NOK','red'], ['NA','N/A','grey'] ];
-  return '<div class="seg seg-'+size+'">' + opts.map(([v,lbl,tone]) =>
-    '<button type="button" class="seg-btn '+(value===v?('on '+tone):'')+'" '+
-    'onclick="setSeg(\''+kind+'\','+id+',\''+v+'\')">'+lbl+'</button>').join('') + '</div>';
+function segHtml(kind,id,value,size,options){
+  return '<div class="seg seg-'+size+'">'+options.map(([v,lbl,hex])=>
+    '<button type="button" class="seg-btn'+(value===v?' on':'')+'" style="'+(value===v?('background:'+hex):'')+'" '+
+    'onclick="setSeg(\''+kind+'\','+id+',\''+v+'\')">'+lbl+'</button>').join('')+'</div>';
 }
 
-function renderRows() {
-  const list = visibleMachines();
-  const host = document.getElementById('rows');
-  if (list.length===0) { host.innerHTML = '<div class="list-empty">No machines match this filter.</div>'; return; }
+function machineRowHtml(m, r){
+  const lv = sevInfo(m.severity);
+  const state = rowState(r);
+  const open = expanded===m.id;
+  const pill = '<span class="pill" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+(lv.frequencyLabel?(' — '+esc(lv.frequencyLabel)):'')+'</span>';
 
-  host.innerHTML = list.map(m => {
-    const r = rows[m.id];
-    const sev = SEV[m.severity] || SEV[1];
-    const state = isNOK(r) ? 'nok' : isOK(r) ? 'ok' : isNA(r) ? 'na' : 'todo';
-    const open = expanded === m.id;
-
-    let tail = '';
-    if (open) {
-      tail =
-        '<div class="row-detail">' +
-          '<label class="field"><span>Drawing / Part No.</span>' +
-            '<input class="mono" value="'+esc(r.partNo)+'" oninput="setField('+m.id+',\'partNo\',this.value)"></label>' +
-          '<div class="sub-checks">' +
-            '<div class="subfield"><span>Plans in place &amp; used</span>'+segHtml('plans',m.id,r.plans,'sm')+'</div>' +
-            '<div class="subfield"><span>Destructive / NDT in place</span>'+segHtml('ndt',m.id,r.ndt,'sm')+'</div>' +
-            '<div class="subfield"><span>Area docs up to date</span>'+segHtml('docs',m.id,r.docs,'sm')+'</div>' +
-          '</div>' +
-          '<div class="detail-grid">' +
-            '<label class="field"><span>Deviation from standard</span>' +
-              '<textarea rows="2" oninput="setField('+m.id+',\'deviation\',this.value)">'+esc(r.deviation)+'</textarea></label>' +
-            '<label class="field"><span>Customer</span>' +
-              '<input value="'+esc(r.customer)+'" oninput="setField('+m.id+',\'customer\',this.value)"></label>' +
-            '<label class="field"><span>Action taken</span>' +
-              '<input placeholder="Hold / Audit / QA Tracker" value="'+esc(r.actionTaken)+'" oninput="setField('+m.id+',\'actionTaken\',this.value)"></label>' +
-          '</div>' +
-        '</div>';
-    } else if (r.deviation || r.partNo) {
-      tail = '<div class="row-note">' +
-        (r.partNo ? '<span class="mono note-part">'+esc(r.partNo)+'</span>' : '') +
-        (r.deviation ? '<span class="note-dev">'+esc(r.deviation)+'</span>' : '') +
-        (r.customer ? '<span class="pill grey">'+esc(r.customer)+'</span>' : '') + '</div>';
+  let tail='';
+  if(open){
+    if(r.result==='NOT_OK'){
+      const modeOpts = '<option value="">— select failure mode —</option>' + FORM.failureModes.map(f=>'<option value="'+f.id+'"'+(String(r.failureModeId)===String(f.id)?' selected':'')+'>'+esc(f.label)+'</option>').join('');
+      tail = '<div class="row-detail">' +
+        '<label class="field"><span>Failure mode <span class="req-flag">required</span></span>' +
+          '<select onchange="setField('+m.id+',\'failureModeId\',this.value)">'+modeOpts+'</select></label>' +
+        '<div class="detail-grid">' +
+          fieldInput(m.id,'partNo','Part No.',r.partNo,'mono') +
+          fieldInput(m.id,'serialNo','Serial No. (optional)',r.serialNo,'mono') +
+          fieldInput(m.id,'customer','Customer',r.customer) +
+        '</div>' +
+        '<div class="detail-grid">' +
+          '<label class="field"><span>Comment (optional)</span><textarea rows="2" oninput="setField('+m.id+',\'comment\',this.value)">'+esc(r.comment)+'</textarea></label>' +
+          fieldInput(m.id,'actionTaken','Action taken (Hold / Audit / QA Tracker)',r.actionTaken) +
+        '</div></div>';
+    } else if(r.result==='NOT_AUDITED'){
+      const reasonOpts = '<option value="">— select reason —</option>' + FORM.notAuditedReasons.map(x=>'<option value="'+x.id+'"'+(String(r.notAuditedReasonId)===String(x.id)?' selected':'')+'>'+esc(x.label)+'</option>').join('');
+      tail = '<div class="row-detail">' +
+        '<label class="field"><span>Reason not audited <span class="req-flag">required</span></span>' +
+          '<select onchange="setField('+m.id+',\'notAuditedReasonId\',this.value)">'+reasonOpts+'</select></label></div>';
+    } else if(r.result==='OK'){
+      let depth = '<div class="ins-note">'+esc(lv.instruction)+'</div>';
+      const checks=[];
+      if(lv.requiresCritDims) checks.push('<div class="subfield"><span>Critical dimension checks</span>'+segHtml('critDims',m.id,r.critDims,'sm',SUBOPTS)+'</div>');
+      if(lv.requiresQmIpVersion) checks.push('<div class="subfield"><span>QM IP version check</span>'+segHtml('qmIp',m.id,r.qmIp,'sm',SUBOPTS)+'</div>');
+      if(checks.length) depth += '<div class="sub-checks">'+checks.join('')+'</div>';
+      depth += '<div class="detail-grid">'+fieldInput(m.id,'partNo','Part No. (optional)',r.partNo,'mono')+fieldInput(m.id,'serialNo','Serial No. (optional)',r.serialNo,'mono')+fieldInput(m.id,'comment','Comment (optional)',r.comment)+'</div>';
+      tail = '<div class="row-detail">'+depth+'</div>';
     }
-
-    return '<div class="row state-'+state+'">' +
-      '<div class="spine '+sev.tone+'" title="Severity '+m.severity+'"></div>' +
-      '<div class="row-main">' +
-        '<div class="row-id">'+m.sortOrder+'</div>' +
-        '<div class="row-name"><div class="nm">'+esc(m.displayName) +
-          (m.specialMeasures ? '<span class="xx" title="Special measures">XX</span>' : '') + '</div>' +
-          '<div class="meta"><span class="pill '+sev.tone+'">SEV '+sev.label+'</span>' +
-          '<span class="pill grey">'+esc(m.location)+'</span></div></div>' +
-        segHtml('result', m.id, r.result, 'md') +
-        '<button class="disc '+(open?'on':'')+'" onclick="toggleExpand('+m.id+')" aria-label="More">'+(open?'&ndash;':'+')+'</button>' +
-      '</div>' + tail + '</div>';
-  }).join('');
-}
-
-function setSeg(kind, id, v) {
-  const r = rows[id];
-  r[kind] = (r[kind]===v) ? '' : v;   // tap again to clear
-  renderRows();
-  updateProgress();
-}
-function setField(id, key, val) { rows[id][key] = val; }  // no re-render: keep focus
-function toggleExpand(id) { expanded = (expanded===id) ? null : id; renderRows(); }
-
-function markShownOK() {
-  visibleMachines().forEach(m => { if (!isAudited(rows[m.id])) rows[m.id].result = 'OK'; });
-  renderRows();
-  updateProgress();
-}
-
-function updateProgress() {
-  const total = MACHINES.length || 1;
-  const checked = MACHINES.filter(m => isAudited(rows[m.id])).length;
-  const fails = MACHINES.filter(m => isNOK(rows[m.id])).length;
-  document.getElementById('checked-count').textContent = checked;
-  document.getElementById('pbar-fill').style.width = Math.round(checked/total*100) + '%';
-  const fc = document.getElementById('fail-count');
-  fc.classList.toggle('hidden', fails===0);
-  fc.textContent = fails + ' fail' + (fails>1?'s':'');
-  document.getElementById('save-btn').disabled = checked===0;
-}
-
-function resetEntry() {
-  rows = {}; MACHINES.forEach(m => rows[m.id] = emptyRow());
-  expanded = null;
-  document.getElementById('h-other').value = '';
-  renderRows();
-  updateProgress();
-}
-
-async function submitAudit() {
-  const results = MACHINES
-    .filter(m => isAudited(rows[m.id]))
-    .map(m => {
-      const r = rows[m.id];
-      return {
-        auditItemId: m.id,
-        result: r.result,
-        partNo: r.partNo || null,
-        plans: r.plans || null,
-        ndt: r.ndt || null,
-        docs: r.docs || null,
-        deviation: r.deviation || null,
-        customer: r.customer || null,
-        actionTaken: r.actionTaken || null
-      };
-    });
-
-  const payload = {
-    area: document.getElementById('h-area').value.trim() || 'Sheet Metal',
-    auditDate: document.getElementById('h-date').value || todayISO(),
-    shift: document.getElementById('h-shift').value,
-    auditor: document.getElementById('h-auditor').value.trim(),
-    otherNotes: document.getElementById('h-other').value.trim() || null,
-    results
-  };
-
-  if (!payload.auditor) { toast('Enter the auditor initials first', true); return; }
-  if (results.length===0) { toast('Check at least one machine first', true); return; }
-
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  try {
-    await api('/api/submissions', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-    });
-    toast('Shift audit saved');
-    resetEntry();
-    showView('dashboard');
-  } catch (e) {
-    toast('Save failed: ' + e.message, true);
-    btn.disabled = false;
   }
+
+  return '<div class="row state-'+state+'" id="row-'+m.id+'">' +
+    '<div class="spine" style="background:'+esc(lv.colourHex)+'" title="'+esc(lv.name)+'"></div>' +
+    '<div class="row-main">' +
+      '<div class="row-id">'+(m.sortOrder||'')+'</div>' +
+      '<div class="row-name"><div class="nm">'+esc(m.displayName)+(m.specialMeasures?'<span class="xx" title="Special measures">XX</span>':'')+
+        (m.isFallback?'<span class="tag" title="No RAG set this week — using default">default</span>':'')+'</div>' +
+        '<div class="meta">'+pill+'<span class="pill grey">'+esc(m.location)+'</span></div></div>' +
+      segHtml('result',m.id,r.result,'md',RESULTS) +
+      '<button class="disc'+(open?' on':'')+'" onclick="toggleExpand('+m.id+')">'+(open?'&ndash;':'+')+'</button>' +
+    '</div>'+tail+'</div>';
+}
+function fieldInput(id,key,label,value,cls){ return '<label class="field"><span>'+esc(label)+'</span><input class="'+(cls||'')+'" value="'+esc(value)+'" oninput="setField('+id+',\''+key+'\',this.value)"></label>'; }
+
+function renderRows(){
+  const list=visibleMachines(), host=document.getElementById('rows');
+  host.innerHTML = list.length ? list.map(m=>machineRowHtml(m,rows[m.id])).join('') : '<div class="list-empty">No machines match this filter.</div>';
+}
+function setSeg(kind,id,v){ const r=rows[id]; r[kind]=(r[kind]===v)?'':v; if(kind==='result'){ /* keep dependent values */ } renderRows(); updateProgress(); scheduleDraftSave(); }
+function setField(id,key,v){ rows[id][key]=v; scheduleDraftSave(); }
+function toggleExpand(id){ expanded=(expanded===id)?null:id; renderRows(); }
+function markShownOK(){ visibleMachines().forEach(m=>{ if(!isAudited(rows[m.id])) rows[m.id].result='OK'; }); renderRows(); updateProgress(); scheduleDraftSave(); }
+
+function updateProgress(){
+  const total=MACHINES.length||1;
+  const checked=MACHINES.filter(m=>isAudited(rows[m.id])).length;
+  const fails=MACHINES.filter(m=>isFail(rows[m.id])).length;
+  document.getElementById('checked-count').textContent=checked;
+  document.getElementById('pbar-fill').style.width=Math.round(checked/total*100)+'%';
+  const fc=document.getElementById('fail-count'); fc.classList.toggle('hidden',fails===0); fc.textContent=fails+' fail'+(fails>1?'s':'');
+  document.getElementById('save-btn').disabled=checked===0;
+}
+function resetEntry(){ MACHINES.forEach(m=>rows[m.id]=emptyRow()); expanded=null; setVal('h-other',''); clearInlineError(); discardDraftKey(); renderRows(); updateProgress(); }
+function getHeader(){ return { area:'', date:val('h-date'), shift:val('h-shift'), auditor:val('h-auditor').trim() }; }
+
+function validateRows(){
+  const bad=[];
+  MACHINES.forEach(m=>{ const r=rows[m.id]; if(!isAudited(r)) return;
+    if(r.result==='NOT_OK' && !r.failureModeId) bad.push(m.id);
+    if(r.result==='NOT_AUDITED' && !r.notAuditedReasonId) bad.push(m.id);
+  });
+  return bad;
 }
 
-// --------------------------------------------------------------------------
-// Dashboard
-// --------------------------------------------------------------------------
-let locChart = null, sevChart = null;
-
-async function loadDashboard() {
-  const from = document.getElementById('d-from').value;
-  const to   = document.getElementById('d-to').value;
-  const qs = '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
-  const body = document.getElementById('dash-body');
-
-  try {
-    const [summary, failures] = await Promise.all([
-      api('/api/dashboard/summary' + qs),
-      api('/api/dashboard/failures' + qs)
-    ]);
-    renderDashboard(summary, failures);
-  } catch (e) {
-    body.innerHTML = '<div class="card clean">Could not load the dashboard.<br>' + esc(e.message) + '</div>';
-  }
-}
-
-function renderDashboard(s, failures) {
-  const body = document.getElementById('dash-body');
-
-  if (!s || s.shiftsLogged === 0) {
-    if (locChart) { locChart.destroy(); locChart=null; }
-    if (sevChart) { sevChart.destroy(); sevChart=null; }
-    body.innerHTML =
-      '<div class="empty"><div class="empty-mark">&#9636;</div>' +
-      '<h2>No shifts in this range</h2>' +
-      '<p>Complete a shift audit and it lands here as live pass rates, a severity-ranked failure board, and area coverage.</p>' +
-      '<div class="empty-actions"><button class="primary" onclick="showView(\'entry\')">Start an audit</button></div></div>';
+async function submitAudit(){
+  clearInlineError();
+  document.querySelectorAll('.row.invalid').forEach(el=>el.classList.remove('invalid'));
+  const bad = validateRows();
+  if(bad.length){
+    bad.forEach(id=>{ const el=document.getElementById('row-'+id); if(el) el.classList.add('invalid'); });
+    if(expanded===null){ expanded=bad[0]; renderRows(); bad.forEach(id=>{const el=document.getElementById('row-'+id); if(el)el.classList.add('invalid');}); }
+    showInlineError('Some rows need a failure mode or a reason before saving — '+bad.length+' highlighted.');
     return;
   }
+  const results = MACHINES.filter(m=>isAudited(rows[m.id])).map(m=>{ const r=rows[m.id]; return {
+    auditItemId:m.id, result:r.result,
+    failureModeId: r.result==='NOT_OK' ? (+r.failureModeId||null) : null,
+    notAuditedReasonId: r.result==='NOT_AUDITED' ? (+r.notAuditedReasonId||null) : null,
+    partNo:r.partNo||null, serialNo:r.serialNo||null, critDimsChecked:r.critDims||null,
+    qmIpVersionChecked:r.qmIp||null, comment:r.comment||null, customer:r.customer||null, actionTaken:r.actionTaken||null
+  }; });
+  const h=getHeader();
+  const payload = { departmentId:+document.getElementById('h-dept').dataset.id, auditDate:h.date||todayISO(), shift:h.shift, auditor:h.auditor, otherNotes:val('h-other').trim()||null, results };
+  if(!payload.auditor){ showInlineError('Enter the auditor initials first — nothing was saved.'); return; }
+  if(!results.length){ showInlineError('Check at least one machine first — nothing was saved.'); return; }
 
-  const passTone = s.passRate >= 90 ? 'green' : 'red';
+  const checked=results.length, fails=MACHINES.filter(m=>isFail(rows[m.id])).length;
+  const btn=document.getElementById('save-btn'); btn.disabled=true;
+  try{
+    const res=await api('/api/submissions',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    discardDraftKey();
+    showConfirm({ id:res.id, dept:FORM.department.name, date:payload.auditDate, shift:payload.shift, auditor:payload.auditor, checked, fails });
+  }catch(e){ showInlineError('Couldn’t save — '+e.message+'. Your entries are still here, try again.'); btn.disabled=false; }
+}
+function showInlineError(msg){ const el=document.getElementById('entry-error'); el.textContent=msg; el.classList.remove('hidden'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
+function clearInlineError(){ document.getElementById('entry-error').classList.add('hidden'); }
+
+function showConfirm(info){
+  lastSaved=info; const total=MACHINES.length||0;
+  const failPill = info.fails ? '<span class="c-pill bad">'+info.fails+' fail'+(info.fails>1?'s':'')+'</span>' : '<span class="c-pill ok">No failures</span>';
+  document.getElementById('confirm-body').innerHTML =
+    '<div class="confirm"><div class="tick">&check;</div><h2>Shift audit saved</h2>' +
+    '<div class="c-meta">'+esc(info.dept)+' &middot; '+esc(info.date)+' &middot; '+esc(info.shift)+(info.auditor?' &middot; '+esc(info.auditor):'')+'</div>' +
+    '<div class="c-stats"><span class="c-pill ok">'+info.checked+'/'+total+' checked</span>'+failPill+'</div>' +
+    '<div class="c-actions"><button class="primary" onclick="startNewAudit()">Start new audit</button>' +
+    '<button class="ghost" onclick="openSubmission('+info.id+')">View this audit</button></div></div>';
+  showView('confirm');
+}
+function startNewAudit(){ resetEntry(); showView('entry'); }
+
+// ==========================================================================
+// Draft backup
+// ==========================================================================
+function scheduleDraftSave(){ draftDismissed=true; hideDraftBanner(); clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft,500); }
+function saveDraft(){ if(!FORM) return; try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({ departmentId:FORM.department.id, header:getHeader(), other:val('h-other'), rows, savedAt:new Date().toISOString() })); }catch(_){} }
+function checkDraft(){
+  if(draftDismissed||!FORM) return;
+  let raw; try{ raw=localStorage.getItem(DRAFT_KEY); }catch(_){ return; }
+  if(!raw){ hideDraftBanner(); return; }
+  let d; try{ d=JSON.parse(raw); }catch(_){ return; }
+  if(d.departmentId!==FORM.department.id){ return; }
+  pendingDraft=d;
+  const label = d.savedAt ? new Date(d.savedAt).toLocaleString() : 'earlier';
+  const b=document.getElementById('draft-banner');
+  b.innerHTML='<span>Restore unsaved audit from '+esc(label)+'?</span><span class="b-actions"><button onclick="restoreDraft()">Restore</button><button onclick="discardDraft()">Discard</button></span>';
+  b.classList.remove('hidden');
+}
+function restoreDraft(){ if(!pendingDraft) return; const d=pendingDraft;
+  if(d.header){ setVal('h-date',d.header.date); setVal('h-shift',d.header.shift); setVal('h-auditor',d.header.auditor); }
+  setVal('h-other',d.other||''); rows=d.rows||{}; MACHINES.forEach(m=>{ if(!rows[m.id]) rows[m.id]=emptyRow(); });
+  draftDismissed=true; hideDraftBanner(); renderRows(); updateProgress();
+}
+function discardDraft(){ discardDraftKey(); draftDismissed=true; hideDraftBanner(); }
+function discardDraftKey(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(_){} pendingDraft=null; draftDismissed=false; }
+function hideDraftBanner(){ document.getElementById('draft-banner').classList.add('hidden'); }
+
+// ==========================================================================
+// Dashboard
+// ==========================================================================
+let charts = {};
+function destroyChart(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } }
+let DASH_FAILURES = [], dashFilter = null;
+
+async function loadDashboard(){
+  const dept = val('d-dept'); if(!dept){ document.getElementById('dash-body').innerHTML='<div class="clean">No department.</div>'; return; }
+  const week = mondayOfISO(val('d-week'));
+  const q = '?departmentId='+dept+'&weekStarting='+week;
+  const body=document.getElementById('dash-body');
+  try{
+    const [summary, failures, modes, customers] = await Promise.all([
+      api('/api/dashboard/summary'+q), api('/api/dashboard/failures'+q),
+      api('/api/dashboard/failure-modes'+q), api('/api/dashboard/by-customer'+q)
+    ]);
+    DASH_FAILURES = failures || []; dashFilter=null;
+    renderDashboard(summary, modes, customers);
+  }catch(e){ body.innerHTML='<div class="card clean">Could not load the dashboard.<br>'+esc(e.message)+'</div>'; }
+}
+
+function renderDashboard(s, modes, customers){
+  const body=document.getElementById('dash-body');
+  const cur=s.current, prev=s.previous;
+  const passTone = cur.passRate>=90?'green':'red';
+  const rateDelta = (cur.passRate-prev.passRate);
+  const failDelta = (cur.failCount-prev.failCount);
   const kpis = [
-    ['Shifts logged', s.shiftsLogged, ''],
-    ['Line checks', s.totalChecks, ''],
-    ['Pass rate', s.passRate + '%', passTone],
-    ['Open failures', s.failCount, s.failCount>0 ? 'red':'green']
+    ['Shifts logged', cur.shiftsLogged, '', ''],
+    ['Checks completed', cur.passCount+cur.failCount, '', ''],
+    ['Pass rate', cur.passRate+'%', passTone, (rateDelta>=0?'up':'down')+'|'+(rateDelta>=0?'+':'')+rateDelta.toFixed(1)+' pts vs last wk'],
+    ['Open failures', cur.failCount, cur.failCount>0?'red':'green', (failDelta<=0?'up':'down')+'|'+(failDelta>0?'+':'')+failDelta+' vs last wk']
   ];
 
-  const failBoard = (failures && failures.length)
-    ? '<div class="fail-list">' + failures.map(f => {
-        const sev = SEV[f.severity] || SEV[1];
-        return '<div class="fail"><div class="sev-tag '+sev.tone+'">SEV '+sev.label+'</div>' +
-          '<div class="fail-body"><div class="fail-top">' +
-            '<span class="fail-name">'+esc(f.machineName)+ (f.specialMeasures?' <span class="xx">XX</span>':'') +'</span>' +
-            '<span class="fail-when">'+esc(f.auditDate)+' &middot; '+esc(f.shift)+'</span></div>' +
-          '<div class="fail-dev">'+esc(f.deviation || 'Marked NOK — no deviation note')+'</div>' +
-          '<div class="fail-tags">' +
-            (f.partNo ? '<span class="mono tag">'+esc(f.partNo)+'</span>' : '') +
-            '<span class="tag">'+esc(f.location)+'</span>' +
-            (f.customer ? '<span class="tag">'+esc(f.customer)+'</span>' : '') +
-            (f.actionTaken ? '<span class="tag act">'+esc(f.actionTaken)+'</span>' : '') +
-            (f.plans==='NOK' ? '<span class="tag warn">Plans</span>' : '') +
-            (f.ndt==='NOK'   ? '<span class="tag warn">NDT</span>'   : '') +
-            (f.docs==='NOK'  ? '<span class="tag warn">Docs</span>'  : '') +
-          '</div></div></div>';
-      }).join('') + '</div>'
-    : '<div class="clean">No failures recorded in this range. All checked line items passed.</div>';
-
-  const recent = (s.recentShifts || []).map(r =>
-    '<div class="rec"><div class="rec-main"><strong>'+esc(r.auditDate)+'</strong> &middot; '+esc(r.shift) +
-    (r.auditor ? ' &middot; '+esc(r.auditor) : '') + '</div>' +
-    '<div class="rec-stats"><span>'+r.checked+'/'+(MACHINES.length||59)+'</span>' +
-    '<span class="'+(r.fails?'bad':'good')+'">'+(r.fails ? r.fails+' fail' : 'clean')+'</span></div></div>').join('');
+  const compliance = (s.compliance||[]).map(c=>{
+    const lv=sevInfo(c.severity);
+    return '<div class="comp-row"><div class="comp-name"><span class="dot" style="background:'+esc(lv.colourHex)+'"></span>'+esc(c.displayName)+'</div>'+
+      '<div class="comp-target '+(c.underTarget?'under':'met')+'">'+c.actual+'/'+c.expected+'</div>'+
+      '<div class="muted" style="font-size:12px">'+c.pass+' ok · '+c.fail+' fail'+(c.notAudited?' · '+c.notAudited+' n/a':'')+'</div></div>';
+  }).join('') || '<div class="clean">No checks recorded this week.</div>';
 
   body.innerHTML =
-    '<div class="kpi-row">' + kpis.map(([lbl,val,tone]) =>
-      '<div class="kpi '+tone+'"><div class="kpi-val">'+val+'</div><div class="kpi-lbl">'+lbl+'</div></div>').join('') + '</div>' +
+    '<div class="kpi-row">'+kpis.map(([lbl,v,tone,delta])=>{
+      const d = delta? '<div class="kpi-delta '+delta.split('|')[0]+'">'+esc(delta.split('|')[1])+'</div>' : '';
+      return '<div class="kpi '+tone+'"><div class="kpi-val">'+v+'</div><div class="kpi-lbl">'+lbl+'</div>'+d+'</div>';
+    }).join('')+'</div>' +
     '<div class="dash-grid">' +
-      '<section class="card board"><div class="card-hd"><h3>Failure board</h3><span class="hd-note">Severity 3 first</span></div>'+failBoard+'</section>' +
+      '<div style="display:flex;flex-direction:column;gap:14px">' +
+        '<section class="card"><div class="card-hd"><h3>Compliance against target</h3><span class="hd-note">week of '+esc(s.weekStarting)+'</span></div>'+compliance+'</section>' +
+        '<section class="card"><div class="card-hd"><h3>Failure board</h3><span class="hd-note" id="fb-note">severity 3 first</span></div><div id="failboard"></div></section>' +
+      '</div>' +
       '<div class="side">' +
-        '<section class="card"><div class="card-hd"><h3>Pass rate by area</h3></div><div class="chart-wrap"><canvas id="locChart"></canvas></div></section>' +
-        '<section class="card"><div class="card-hd"><h3>Failures by severity</h3></div><div class="chart-wrap"><canvas id="sevChart"></canvas></div></section>' +
-        '<section class="card recent"><div class="card-hd"><h3>Recent shifts</h3></div>'+(recent||'<div class="clean">None</div>')+'</section>' +
+        '<section class="card"><div class="card-hd"><h3>Failure modes</h3></div><div class="chart-wrap"><canvas id="modeChart"></canvas></div></section>' +
+        '<section class="card"><div class="card-hd"><h3>Failure rate by customer</h3></div><div class="chart-wrap"><canvas id="custChart"></canvas></div></section>' +
+        '<section class="card"><div class="card-hd"><h3>Pass rate by severity</h3></div>'+barBlock(s.passBySeverity.map(x=>[sevInfo(x.severity).name, x.rate, x.fail+'/'+x.total, sevInfo(x.severity).colourHex]))+'</section>' +
+        '<section class="card"><div class="card-hd"><h3>Pass rate by area</h3></div>'+barBlock(s.passByLocation.map(x=>[x.location, x.rate, x.pass+'/'+x.total, x.rate>=90?'#15803d':'#b91c1c']))+'</section>' +
       '</div>' +
     '</div>';
 
-  drawCharts(s);
+  renderFailBoard();
+  drawModeChart(modes||[]);
+  drawCustChart(customers||[]);
 }
 
-function drawCharts(s) {
-  const commonH = { indexAxis:'y', responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{display:false} }, animation:false };
-
-  if (locChart) locChart.destroy();
-  locChart = new Chart(document.getElementById('locChart'), {
-    type:'bar',
-    data:{ labels: s.passByLocation.map(l => l.location),
-      datasets:[{ data: s.passByLocation.map(l => l.rate),
-        backgroundColor: s.passByLocation.map(l => l.rate>=90 ? '#15803d' : '#b91c1c') }] },
-    options: Object.assign({}, commonH, {
-      scales:{ x:{ min:0, max:100, ticks:{ callback:v=>v+'%' } } },
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => c.parsed.x+'% ('+s.passByLocation[c.dataIndex].pass+'/'+s.passByLocation[c.dataIndex].total+')' } } }
-    })
-  });
-
-  const sevColors = { 3:'#b91c1c', 2:'#b45309', 1:'#15803d' };
-  if (sevChart) sevChart.destroy();
-  sevChart = new Chart(document.getElementById('sevChart'), {
-    type:'bar',
-    data:{ labels: s.passBySeverity.map(x => 'Sev '+x.severity),
-      datasets:[{ data: s.passBySeverity.map(x => x.fail),
-        backgroundColor: s.passBySeverity.map(x => sevColors[x.severity] || '#64748b') }] },
-    options: Object.assign({}, commonH, {
-      scales:{ x:{ min:0, beginAtZero:true, ticks:{ precision:0 } } },
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => c.parsed.x+' of '+s.passBySeverity[c.dataIndex].total+' failed' } } }
-    })
-  });
+function barBlock(items){
+  return items.map(([lbl,pct,sub,hex])=>
+    '<div class="bar-row"><div class="bar-lbl">'+esc(lbl)+'<em>'+esc(sub)+'</em></div>'+
+    '<div class="bar-track"><span style="width:'+(pct||0)+'%;background:'+esc(hex)+'"></span></div>'+
+    '<div class="bar-val">'+(pct==null?'—':pct+'%')+'</div></div>').join('') || '<div class="clean">No data.</div>';
 }
 
-// --------------------------------------------------------------------------
-// Filter chip wiring + init
-// --------------------------------------------------------------------------
-document.getElementById('filter-chips').addEventListener('click', e => {
-  const btn = e.target.closest('.chip'); if (!btn) return;
-  if (btn.dataset.loc) {
-    filter.loc = btn.dataset.loc;
-    document.querySelectorAll('#filter-chips [data-loc]').forEach(b => b.classList.toggle('on', b===btn));
-  } else if (btn.dataset.flag) {
-    filter.flag = btn.dataset.flag;
-    document.querySelectorAll('#filter-chips [data-flag]').forEach(b => b.classList.toggle('on', b===btn));
-  }
+function renderFailBoard(){
+  const host=document.getElementById('failboard');
+  let list = DASH_FAILURES;
+  if(dashFilter){ list = list.filter(dashFilter.fn); }
+  document.getElementById('fb-note').innerHTML = dashFilter ? ('filtered: '+esc(dashFilter.label)+' <button class="sm-btn" onclick="clearDashFilter()">clear</button>') : 'severity 3 first';
+  if(!list.length){ host.innerHTML='<div class="clean">No failures'+(dashFilter?' for this filter':' recorded this week')+'.</div>'; return; }
+  host.innerHTML='<div class="fail-list">'+list.map(f=>{
+    const lv=sevInfo(f.severity);
+    return '<div class="fail"><div class="sev-tag" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</div>'+
+      '<div class="fail-body"><div class="fail-top"><span class="fail-name">'+esc(f.machineName)+'</span>'+
+        '<span class="fail-when">'+esc(f.auditDate)+' &middot; '+esc(f.shift)+'</span></div>'+
+      '<div class="fail-mode">'+esc(f.failureMode||'(no mode)')+'</div>'+
+      (f.comment?'<div class="muted" style="font-size:12.5px;margin-bottom:6px">'+esc(f.comment)+'</div>':'')+
+      '<div class="fail-tags">'+esc(f.location)+
+        (f.partNo?' <span class="mono tag">'+esc(f.partNo)+'</span>':'')+
+        (f.customer?'<span class="tag">'+esc(f.customer)+'</span>':'')+
+        (f.actionTaken?'<span class="tag act">'+esc(f.actionTaken)+'</span>':'')+
+      '</div></div></div>';
+  }).join('')+'</div>';
+}
+function clearDashFilter(){ dashFilter=null; renderFailBoard(); }
+
+function drawModeChart(modes){
+  destroyChart('mode');
+  if(!modes.length){ document.getElementById('modeChart').parentElement.innerHTML='<div class="clean">No failures this week.</div>'; return; }
+  const palette=['#b91c1c','#b45309','#2f6f9f','#15803d','#7c3aed','#64748b','#0891b2'];
+  charts.mode = new Chart(document.getElementById('modeChart'), {
+    type:'pie',
+    data:{ labels:modes.map(m=>m.failureMode), datasets:[{ data:modes.map(m=>m.failCount), backgroundColor:modes.map((_,i)=>palette[i%palette.length]) }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}} },
+      onClick:(e,els)=>{ if(els.length){ const code=modes[els[0].index].failureModeCode; dashFilter={label:modes[els[0].index].failureMode, fn:f=>f.failureModeCode===code}; renderFailBoard(); } } }
+  });
+}
+function drawCustChart(custs){
+  destroyChart('cust');
+  const withFails = custs.filter(c=>c.failCount>0);
+  if(!withFails.length){ document.getElementById('custChart').parentElement.innerHTML='<div class="clean">No customer failures this week.</div>'; return; }
+  charts.cust = new Chart(document.getElementById('custChart'), {
+    type:'bar',
+    data:{ labels:withFails.map(c=>c.customer), datasets:[{ data:withFails.map(c=>c.failCount), backgroundColor:'#b91c1c' }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false, plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,ticks:{precision:0}}},
+      onClick:(e,els)=>{ if(els.length){ const cust=withFails[els[0].index].customer; dashFilter={label:cust, fn:f=>(f.customer||'')===cust}; renderFailBoard(); } } }
+  });
+}
+function toggleTv(){ document.body.classList.toggle('tv'); }
+
+// ==========================================================================
+// History
+// ==========================================================================
+async function loadHistory(){
+  const host=document.getElementById('history-body');
+  let q='?from='+encodeURIComponent(val('hist-from'))+'&to='+encodeURIComponent(val('hist-to'));
+  if(val('hist-dept')) q+='&departmentId='+val('hist-dept');
+  host.innerHTML='<div class="clean">Loading…</div>';
+  try{
+    const list=await api('/api/submissions'+q);
+    if(!list.length){ host.innerHTML='<div class="clean">No shift audits in this range.</div>'; return; }
+    host.innerHTML='<div class="hist-table"><div class="hist-row hist-head"><span>Date</span><span>Shift</span><span class="h-auditor">Auditor</span><span>Checked</span><span>Result</span></div>'+
+      list.map(s=>'<div class="hist-row" onclick="openSubmission('+s.id+')"><span class="h-date">'+esc(s.auditDate)+'</span>'+
+        '<span>'+esc(s.shift)+'</span><span class="h-auditor">'+esc(s.auditor||'')+'</span>'+
+        '<span>'+s.checked+'</span><span class="'+(s.failCount?'bad':'good')+'">'+(s.failCount?s.failCount+' fail'+(s.failCount>1?'s':''):'clean')+'</span></div>').join('')+'</div>';
+  }catch(e){ host.innerHTML='<div class="clean">Could not load history.<br>'+esc(e.message)+'</div>'; }
+}
+
+function resultBadge(v){ const o=RESULTS.find(x=>x[0]===v); return o?'<span class="pill" style="background:'+o[2]+'">'+o[1]+'</span>':''; }
+
+async function openSubmission(id){
+  showView('historyDetail');
+  const host=document.getElementById('history-detail-body'); host.innerHTML='<div class="clean">Loading…</div>';
+  try{
+    const d=await api('/api/submissions/'+id);
+    const fails=d.results.filter(r=>r.result==='NOT_OK').length;
+    const rowsHtml=d.results.map(rr=>{
+      const lv=sevInfo(rr.severityAtAudit);
+      const tags=[ rr.failureMode?'<span class="tag warn">'+esc(rr.failureMode)+'</span>':'',
+        rr.notAuditedReason?'<span class="tag">'+esc(rr.notAuditedReason)+'</span>':'',
+        rr.partNo?'<span class="mono tag">'+esc(rr.partNo)+'</span>':'',
+        rr.serialNo?'<span class="mono tag">SN '+esc(rr.serialNo)+'</span>':'',
+        rr.critDimsChecked?'<span class="tag'+(rr.critDimsChecked==='NOT_OK'?' warn':'')+'">Crit dims: '+esc(rr.critDimsChecked)+'</span>':'',
+        rr.qmIpVersionChecked?'<span class="tag'+(rr.qmIpVersionChecked==='NOT_OK'?' warn':'')+'">QM IP: '+esc(rr.qmIpVersionChecked)+'</span>':'',
+        rr.customer?'<span class="tag">'+esc(rr.customer)+'</span>':'',
+        rr.actionTaken?'<span class="tag act">'+esc(rr.actionTaken)+'</span>':'' ].filter(Boolean).join('');
+      const cmt=rr.comment?'<div class="muted" style="font-size:12.5px">'+esc(rr.comment)+'</div>':'';
+      const detail=(tags||cmt)?'<div class="ro-detail">'+cmt+(tags?'<div class="ro-tags">'+tags+'</div>':'')+'</div>':'';
+      return '<div class="row state-'+(rr.result==='NOT_OK'?'nok':'ok')+'"><div class="spine" style="background:'+esc(lv.colourHex)+'"></div>'+
+        '<div class="row-main"><div class="row-name"><div class="nm">'+esc(rr.machineName)+'</div>'+
+        '<div class="meta"><span class="pill" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</span><span class="pill grey">'+esc(rr.location)+'</span></div></div>'+
+        resultBadge(rr.result)+'</div>'+detail+'</div>';
+    }).join('');
+    const notes=d.otherNotes?'<section class="card other-card"><div class="field"><span>Other daily issues &amp; tasks</span><div class="readonly-val">'+esc(d.otherNotes)+'</div></div></section>':'';
+    host.innerHTML='<button class="back-link" onclick="showView(\'history\')">&larr; Back to history</button>'+
+      '<div class="detail-head"><h2>'+esc(d.auditDate)+' &middot; '+esc(d.shift)+'</h2><div class="muted">'+esc(d.departmentName)+(d.auditor?' &middot; '+esc(d.auditor):'')+' &middot; week of '+esc(d.weekStarting)+'</div>'+
+      '<div style="margin-left:auto">'+(fails?'<span class="c-pill bad">'+fails+' fail'+(fails>1?'s':'')+'</span>':'<span class="c-pill ok">No failures</span>')+'</div></div>'+
+      '<section class="rows">'+rowsHtml+'</section>'+notes;
+  }catch(e){ host.innerHTML='<button class="back-link" onclick="showView(\'history\')">&larr; Back</button><div class="clean">Could not load audit #'+id+'.<br>'+esc(e.message)+'</div>'; }
+}
+
+async function showOverview(){
+  showView('overview');
+  const dept=val('hist-dept')||val('d-dept')||(DEPARTMENTS[0]&&DEPARTMENTS[0].id);
+  try{
+    const data=await api('/api/dashboard/overview?departmentId='+dept+'&months=12');
+    destroyChart('ov');
+    charts.ov=new Chart(document.getElementById('ovChart'),{
+      data:{ labels:data.map(d=>d.month),
+        datasets:[ {type:'line', label:'Pass rate %', data:data.map(d=>d.passRate), borderColor:'#15803d', backgroundColor:'#15803d', tension:.3, yAxisID:'y'},
+                   {type:'bar', label:'Failures', data:data.map(d=>d.fail), backgroundColor:'#b91c1c', yAxisID:'y1'} ]},
+      options:{ responsive:true, maintainAspectRatio:false, animation:false,
+        scales:{ y:{position:'left',min:0,max:100,title:{display:true,text:'Pass %'}}, y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'Fails'}} } }
+    });
+  }catch(e){ document.getElementById('ovChart').parentElement.innerHTML='<div class="clean">Could not load overview.<br>'+esc(e.message)+'</div>'; }
+}
+
+// ==========================================================================
+// Admin
+// ==========================================================================
+function loadAdmin(){ if(!document.getElementById('adm-sev-week').value) setVal('adm-sev-week', nextMondayISO()); loadSeverityReview(); loadMachines(); loadFailureModes(); }
+
+let SEV_REVIEW=[];
+async function loadSeverityReview(){
+  const host=document.getElementById('adm-sev-body');
+  const week=mondayOfISO(val('adm-sev-week')); setVal('adm-sev-week',week);
+  let q='?weekStarting='+week; if(val('adm-sev-dept')) q+='&departmentId='+val('adm-sev-dept');
+  host.innerHTML='<div class="clean">Loading…</div>';
+  try{
+    const data=await adminApi('/api/admin/severities'+q);
+    SEV_REVIEW = data.rows.map(r=>({ ...r, chosen:r.severity }));
+    host.innerHTML = SEV_REVIEW.map((r,i)=>severityReviewRowHtml(r,i)).join('') || '<div class="clean">No machines.</div>';
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+function severityReviewRowHtml(r,i){
+  const changed = r.chosen!==r.previousSeverity;
+  return '<div class="adm-item"><div class="comp-name">'+esc(r.displayName)+' <span class="muted" style="font-size:11px">('+esc(r.location)+')</span>'+
+    (changed?'<span class="changed">was '+(RAG[r.previousSeverity]||{}).name+'</span>':'')+(r.isFallback?'<span class="tag">default</span>':'')+'</div>'+
+    '<div class="adm-sev-btns">'+[3,2,1].map(s=>'<button class="rag'+(r.chosen===s?' on':'')+'" style="'+(r.chosen===s?('background:'+RAG[s].hex):'')+'" onclick="setReviewSev('+i+','+s+')">'+RAG[s].name[0]+'</button>').join('')+'</div></div>';
+}
+function setReviewSev(i,s){ SEV_REVIEW[i].chosen=s; document.getElementById('adm-sev-body').children[i].outerHTML=severityReviewRowHtml(SEV_REVIEW[i],i); }
+async function saveSeverityReview(){
+  if(!SEV_REVIEW.length){ toast('Load a week first',true); return; }
+  const body={ weekStarting:mondayOfISO(val('adm-sev-week')), setBy:adminUser||null, assignments:SEV_REVIEW.map(r=>({auditItemId:r.auditItemId, severity:r.chosen})) };
+  try{ await adminApi('/api/admin/severities','POST',body); toast('Severities saved'); loadSeverityReview(); }
+  catch(e){ toast('Save failed: '+e.message,true); }
+}
+
+let MAC_LIST=[];
+async function loadMachines(){
+  const host=document.getElementById('adm-mac-body');
+  let q=''; if(val('adm-mac-dept')) q='?departmentId='+val('adm-mac-dept');
+  host.innerHTML='<div class="clean">Loading…</div>';
+  try{
+    MAC_LIST=await adminApi('/api/admin/audit-items'+q);
+    host.innerHTML = machineAddRowHtml() + MAC_LIST.map(m=>machineRowAdminHtml(m)).join('');
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+function machineAddRowHtml(){
+  const deptOpts=DEPARTMENTS.map(d=>'<option value="'+d.id+'"'+(String(d.id)===val('adm-mac-dept')?' selected':'')+'>'+esc(d.name)+'</option>').join('');
+  return '<div class="adm-grid" style="background:#f4f7fb;border-radius:8px;padding:8px"><input id="nm-name" placeholder="New machine name">'+
+    '<input id="nm-loc" placeholder="Ph1" value="Ph1"><select id="nm-dept">'+deptOpts+'</select>'+
+    '<select id="nm-sev"><option value="1">Green</option><option value="2">Amber</option><option value="3">Red</option></select>'+
+    '<label style="font-size:12px"><input type="checkbox" id="nm-xx"> XX</label>'+
+    '<button class="sm-btn" onclick="addMachine()">Add</button></div>';
+}
+function machineRowAdminHtml(m){
+  return '<div class="adm-grid'+(m.isActive?'':' retired')+'" id="mac-'+m.id+'">'+
+    '<input value="'+esc(m.displayName)+'" onchange="macEdit('+m.id+',\'displayName\',this.value)">'+
+    '<input value="'+esc(m.location)+'" onchange="macEdit('+m.id+',\'location\',this.value)">'+
+    '<span class="muted" style="font-size:12px">'+esc((DEPARTMENTS.find(d=>d.id===m.departmentId)||{}).name||'')+'</span>'+
+    '<select onchange="macEdit('+m.id+',\'defaultSeverity\',this.value)">'+[1,2,3].map(s=>'<option value="'+s+'"'+(m.defaultSeverity===s?' selected':'')+'>'+RAG[s].name+'</option>').join('')+'</select>'+
+    '<label style="font-size:12px"><input type="checkbox" '+(m.specialMeasures?'checked':'')+' onchange="macEdit('+m.id+',\'specialMeasures\',this.checked)"> XX</label>'+
+    '<button class="sm-btn '+(m.isActive?'danger':'')+'" onclick="macRetire('+m.id+','+(m.isActive?'false':'true')+')">'+(m.isActive?'Retire':'Restore')+'</button></div>';
+}
+const macDraft={};
+function macEdit(id,key,v){ macDraft[id]=macDraft[id]||{}; macDraft[id][key]=v; saveMachine(id); }
+async function saveMachine(id){
+  const m=MAC_LIST.find(x=>x.id===id); if(!m) return; const patch=macDraft[id]||{};
+  const body={ id:m.id, departmentId:m.departmentId, displayName:patch.displayName??m.displayName, location:patch.location??m.location,
+    defaultSeverity:+(patch.defaultSeverity??m.defaultSeverity), specialMeasures:patch.specialMeasures??m.specialMeasures, sortOrder:m.sortOrder, isActive:m.isActive };
+  try{ const upd=await adminApi('/api/admin/audit-items/'+id,'PUT',body); Object.assign(m,upd); toast('Saved'); }catch(e){ toast('Save failed: '+e.message,true); }
+}
+async function macRetire(id,active){
+  const m=MAC_LIST.find(x=>x.id===id); if(!m) return;
+  const body={ id:m.id, departmentId:m.departmentId, displayName:m.displayName, location:m.location, defaultSeverity:m.defaultSeverity, specialMeasures:m.specialMeasures, sortOrder:m.sortOrder, isActive:active };
+  try{ const upd=await adminApi('/api/admin/audit-items/'+id,'PUT',body); Object.assign(m,upd); document.getElementById('mac-'+id).outerHTML=machineRowAdminHtml(m); }catch(e){ toast('Failed: '+e.message,true); }
+}
+async function addMachine(){
+  const body={ departmentId:+val('nm-dept'), displayName:val('nm-name').trim(), location:val('nm-loc').trim()||'Ph1', defaultSeverity:+val('nm-sev'), specialMeasures:document.getElementById('nm-xx').checked, sortOrder:(MAC_LIST.length+1)*10, isActive:true };
+  if(!body.displayName){ toast('Enter a name',true); return; }
+  try{ await adminApi('/api/admin/audit-items','POST',body); toast('Machine added'); loadMachines(); }catch(e){ toast('Failed: '+e.message,true); }
+}
+
+let FM_LIST=[];
+async function loadFailureModes(){
+  const host=document.getElementById('adm-fm-body'); host.innerHTML='<div class="clean">Loading…</div>';
+  try{
+    FM_LIST=await adminApi('/api/admin/failure-modes');
+    host.innerHTML = '<div class="adm-grid" style="background:#f4f7fb;border-radius:8px;padding:8px"><input id="fm-code" placeholder="CODE"><input id="fm-label" placeholder="Label" style="grid-column:span 2"><span></span><span></span><button class="sm-btn" onclick="addFailureMode()">Add</button></div>' +
+      FM_LIST.map(f=>'<div class="adm-grid'+(f.isActive?'':' retired')+'" id="fm-'+f.id+'"><input value="'+esc(f.code)+'" onchange="fmEdit('+f.id+',\'code\',this.value)"><input value="'+esc(f.label)+'" style="grid-column:span 2" onchange="fmEdit('+f.id+',\'label\',this.value)"><span></span><span></span><button class="sm-btn '+(f.isActive?'danger':'')+'" onclick="fmRetire('+f.id+','+(f.isActive?'false':'true')+')">'+(f.isActive?'Retire':'Restore')+'</button></div>').join('');
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+const fmDraft={};
+function fmEdit(id,key,v){ fmDraft[id]=fmDraft[id]||{}; fmDraft[id][key]=v; saveFm(id); }
+async function saveFm(id){ const f=FM_LIST.find(x=>x.id===id); if(!f) return; const p=fmDraft[id]||{};
+  const body={ id, code:p.code??f.code, label:p.label??f.label, sortOrder:f.sortOrder, isActive:f.isActive };
+  try{ const upd=await adminApi('/api/admin/failure-modes/'+id,'PUT',body); Object.assign(f,upd); toast('Saved'); }catch(e){ toast('Failed: '+e.message,true); } }
+async function fmRetire(id,active){ const f=FM_LIST.find(x=>x.id===id); if(!f) return;
+  const body={ id, code:f.code, label:f.label, sortOrder:f.sortOrder, isActive:active };
+  try{ await adminApi('/api/admin/failure-modes/'+id,'PUT',body); loadFailureModes(); }catch(e){ toast('Failed: '+e.message,true); } }
+async function addFailureMode(){ const body={ code:val('fm-code').trim(), label:val('fm-label').trim(), sortOrder:(FM_LIST.length+1)*10, isActive:true };
+  if(!body.code||!body.label){ toast('Code and label required',true); return; }
+  try{ await adminApi('/api/admin/failure-modes','POST',body); toast('Added'); loadFailureModes(); }catch(e){ toast('Failed: '+e.message,true); } }
+
+// ==========================================================================
+// Filter chips + init
+// ==========================================================================
+document.getElementById('filter-chips').addEventListener('click', e=>{
+  const btn=e.target.closest('.chip'); if(!btn) return;
+  ['sev','loc','flag'].forEach(k=>{ if(btn.dataset[k]!==undefined){ filter[k]=btn.dataset[k];
+    document.querySelectorAll('#filter-chips [data-'+k+']').forEach(b=>b.classList.toggle('on', b===btn)); } });
   renderRows();
 });
+['h-date','h-auditor','h-other'].forEach(id=>document.getElementById(id).addEventListener('input', scheduleDraftSave));
+document.getElementById('h-shift').addEventListener('change', scheduleDraftSave);
 
-document.getElementById('h-date').value = todayISO();
-document.getElementById('d-from').value = daysAgoISO(30);
-document.getElementById('d-to').value = todayISO();
-loadItems();
+setVal('h-date', todayISO());
+setVal('d-week', mondayOfISO(todayISO()));
+setVal('hist-from', daysAgoISO(30)); setVal('hist-to', todayISO());
+loadDepartments();
 </script>
 </body>
 </html>
