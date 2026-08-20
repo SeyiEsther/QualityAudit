@@ -5,7 +5,7 @@ namespace QualityAudit.Models;
 // view column names. See QualityAuditContext for the ToView() mappings.
 // ============================================================================
 
-// dbo.vw_CurrentSeverity — live severity this week (falls back to DefaultSeverity).
+// dbo.vw_CurrentSeverity — resolves severity for TODAY'S week only (see FormController note).
 public class CurrentSeverity
 {
     public int AuditItemId { get; set; }
@@ -15,16 +15,17 @@ public class CurrentSeverity
     public bool SpecialMeasures { get; set; }
     public int SortOrder { get; set; }
     public byte Severity { get; set; }
-    public int IsFallback { get; set; }   // CASE expression -> int (0/1), not a bit
+    public int IsFallback { get; set; }
 }
 
-// dbo.vw_WeeklyCompliance — expected vs actual checks per machine per week.
+// dbo.vw_WeeklyCompliance
 public class WeeklyCompliance
 {
     public DateOnly WeekStarting { get; set; }
     public int DepartmentId { get; set; }
     public int AuditItemId { get; set; }
     public string DisplayName { get; set; } = "";
+    public int SortOrder { get; set; }
     public byte Severity { get; set; }
     public int ExpectedChecks { get; set; }
     public int ActualChecks { get; set; }
@@ -33,7 +34,7 @@ public class WeeklyCompliance
     public int NotAuditedCount { get; set; }
 }
 
-// dbo.vw_Failures — every NOT_OK line check with its structured failure mode.
+// dbo.vw_Failures
 public class VwFailure
 {
     public int SubmissionId { get; set; }
@@ -45,17 +46,20 @@ public class VwFailure
     public string MachineName { get; set; } = "";
     public string Location { get; set; } = "";
     public byte Severity { get; set; }
-    public string? FailureMode { get; set; }
-    public string? FailureModeCode { get; set; }
+    public string Result { get; set; } = "";
+    public string? PlansResult { get; set; }
+    public string? NdtResult { get; set; }
+    public string? AreaDocsResult { get; set; }
     public string? PartNo { get; set; }
-    public string? SerialNo { get; set; }
-    public string? Comment { get; set; }
+    public string? Deviation { get; set; }
     public string? Customer { get; set; }
     public string? ActionTaken { get; set; }
+    public string? ActionDetail { get; set; }
     public int ResultId { get; set; }
+    public int AttachmentCount { get; set; }
 }
 
-// dbo.vw_FailuresByCustomer — pass/fail counts and fail rate per customer per week.
+// dbo.vw_FailuresByCustomer
 public class FailuresByCustomer
 {
     public DateOnly WeekStarting { get; set; }
@@ -67,17 +71,17 @@ public class FailuresByCustomer
     public decimal? FailRatePct { get; set; }
 }
 
-// dbo.vw_FailureModeBreakdown — fail counts per failure mode per week.
-public class FailureModeBreakdown
+// dbo.vw_CheckPointFailures
+public class CheckPointFailure
 {
     public DateOnly WeekStarting { get; set; }
     public int DepartmentId { get; set; }
-    public string FailureModeCode { get; set; } = "";
-    public string FailureMode { get; set; } = "";
+    public string CheckPointCode { get; set; } = "";
+    public string CheckPointLabel { get; set; } = "";
     public int FailCount { get; set; }
 }
 
-// dbo.vw_WeeklySummary — one row per department per week.
+// dbo.vw_WeeklySummary
 public class WeeklySummary
 {
     public DateOnly WeekStarting { get; set; }

@@ -4,13 +4,14 @@ using QualityAudit.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// EF Core over the existing RittalQualityAudit v2 database. We never migrate — the
+// EF Core over the existing RittalQualityAudit v3 database. We never migrate — the
 // context maps onto tables and views that already exist (see QualityAuditContext).
 builder.Services.AddDbContext<QualityAuditContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("RittalQualityAudit")));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton<AttachmentStorage>();
 
 // MVC controllers for the /api endpoints. System.Text.Json defaults to camelCase,
 // which matches the JSON shapes the frontend expects.

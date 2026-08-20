@@ -1,36 +1,33 @@
-# RittalQualityAudit — Quality Audit (QA 343-31) · v2
+# RittalQualityAudit — Quality Audit (QA 343-34) · v3
 
-Digital replacement for the paper QA 343-31 sheet. ASP.NET Core 8 Web API with a
-single-page HTML/JS frontend. **EF Core** over the existing `RittalQualityAudit`
-database (no Dapper, no Entity Framework migrations) — consistent with the TL Portal.
+Digital replacement for the paper QA 343-34 sheet. ASP.NET Core 8 Web API with a
+single-page HTML/JS frontend. **EF Core** over the existing `RittalQualityAudit` v3
+database (no Dapper, no EF migrations) — consistent with the TL Portal.
 
-## What v2 changed
+## The four things v3 gets right
 
-- **Severity is weekly, not fixed.** The QEs reset each machine's RAG level every Monday
-  (`SeverityAssignments`). Live severity comes from that; `AuditItems.DefaultSeverity` is a
-  fallback only. When an audit is saved, each result stores `SeverityAtAudit` — a **snapshot**
-  of that week's severity — so changing this week's RAG never rewrites last week's numbers.
-- **Departments** (Sheet Metal, Assembly, …) — the machine list is department-scoped.
-- **Structured failures.** `NOT_OK` requires a `FailureMode` from a dropdown; `NOT_AUDITED`
-  requires a reason. Enforced client-side (blocks save, highlights the row) and server-side (400).
-- **Severity drives frequency and depth.** `SeverityLevels` carries `ChecksPerWeek`
-  (compliance target), `RequiresCritDims`, `RequiresQmIpVersion`, and the `Instruction` — all data.
-- **WeekStarting** is always the Monday of the audit date, computed server-side, never trusted from the client.
+1. **The audit week starts on TUESDAY.** `Services/WeekHelper.cs` mirrors `dbo.fn_WeekStarting`
+   exactly (anchor off 1900-01-02, a Tuesday). `WeekStarting` is computed server-side from
+   `AuditDate` on every save and never trusted from the client.
+2. **Severity is snapshotted, never joined live.** Each result stamps `SeverityAtAudit`, resolved
+   from `SeverityAssignments` for that week (falling back to `AuditItems.DefaultSeverity`).
+   Changing this week's RAG never alters last week's numbers.
+3. **Machine names are not unique.** Identity is `AuditItems.Id`; ordering is `SortOrder`; the UI
+   shows the row number so repeated names (e.g. "OEM product check EOL: Meta" ×8) stay distinct.
+4. **NDT is per-department.** The Destructive/NDT sub-check renders only when
+   `Departments.HasNdtCheck` is true (Sheet Metal), driven by the flag.
 
-## Project layout
+## Layout
 
 ```
-Program.cs                     host: EF Core + controllers + static files
-appsettings.json               connection string (key: RittalQualityAudit)
-Data/QualityAuditContext.cs     maps entities + 6 views onto the existing schema
-Models/Entities.cs              Department, AuditItem, SeverityLevel, SeverityAssignment,
-                                FailureMode, NotAuditedReason, Submission, Result, AuditUser
-Models/Views.cs                 keyless entities for the vw_* views
-Models/Dtos.cs                  request + response shapes
-Services/WeekHelper.cs          Monday-of maths
-Services/RangeHelper.cs         date-range defaulting (last 30 days)
+Program.cs                      host: EF Core + controllers + static files + attachment storage
+appsettings.json                connection string + Storage:AttachmentRoot
+Data/QualityAuditContext.cs     maps 13 tables + 6 views onto the existing v3 schema
+Models/Entities.cs / Views.cs / Dtos.cs
+Services/WeekHelper.cs          Tuesday-week rule (mirror of fn_WeekStarting)
+Services/AttachmentStorage.cs   photos on disk under Storage:AttachmentRoot
 Services/UserContext.cs         pluggable identity + IsAdmin check (no auth yet)
-Controllers/                    Departments, Form, Submissions, Dashboard, Admin
+Controllers/                    Departments, Form, Submissions, Attachments, Dashboard, Admin
 wwwroot/index.html              the whole frontend (4 tabs)
 ```
 
@@ -38,46 +35,60 @@ wwwroot/index.html              the whole frontend (4 tabs)
 
 | Method | Route | Purpose |
 | ------ | ----- | ------- |
-| GET  | `/api/departments` | Active departments. |
-| GET  | `/api/form/{departmentId}` | Everything the entry form is built from: machines (live severity), severity rules, failure modes, reasons. |
-| POST | `/api/submissions` | Save one shift audit. Computes WeekStarting, snapshots SeverityAtAudit, validates NOT_OK/NOT_AUDITED, one transaction. |
+| GET  | `/api/departments` | Active departments (incl. `HasNdtCheck`, `FormRef`). |
+| GET  | `/api/form/{departmentId}?date=` | Everything the form is built from; machine severity resolved for that date's week. |
+| POST | `/api/submissions` | Create a draft (`isComplete:false`) or submit (`true`). Snapshots severity, validates mandatory fields, one transaction. Returns id + auditItemId→resultId map. |
+| PUT  | `/api/submissions/{id}` | Resume/update; upserts results by AuditItemId so photos survive. |
+| GET  | `/api/submissions/draft?departmentId=&date=&shift=` | The resumable incomplete submission, if any. |
 | GET  | `/api/submissions?from=&to=&departmentId=&shift=` | History list. |
 | GET  | `/api/submissions/{id}` | Full read-only detail. |
-| GET  | `/api/dashboard/summary?departmentId=&weekStarting=` | KPIs, compliance-vs-target, this week vs last. |
-| GET  | `/api/dashboard/failures?departmentId=&weekStarting=` | Failure board (severity 3 first). |
-| GET  | `/api/dashboard/by-customer?departmentId=&weekStarting=` | Fail rate by customer. |
-| GET  | `/api/dashboard/failure-modes?departmentId=&weekStarting=` | Failure-mode breakdown (pie). |
-| GET  | `/api/dashboard/overview?departmentId=&months=12` | Rolling monthly pass/fail. |
-| GET/POST | `/api/admin/severities?weekStarting=&departmentId=` | Read / bulk-upsert the week's RAG. |
-| GET/POST/PUT | `/api/admin/audit-items` | Add / edit / retire machines (soft delete). |
-| GET/POST/PUT | `/api/admin/failure-modes` | Add / edit / retire failure modes. |
+| POST | `/api/results/{resultId}/attachments` | Multipart image upload (≤10 MB), GUID filename on disk. |
+| GET  | `/api/attachments/{id}` | Stream a photo back. |
+| GET  | `/api/dashboard/summary?departmentId=&weekStarting=` | This week vs last, compliance-vs-target. |
+| GET  | `/api/dashboard/failures` · `/by-customer` · `/check-points` · `/overview` | The dashboard feeds. |
+| GET/POST | `/api/admin/severities` | Weekly RAG review + bulk upsert (defaults to next Tuesday). |
+| GET/POST/PUT | `/api/admin/audit-items` · `/users` · `/customers` · `/check-points` | Self-service admin CRUD (soft delete). |
+
+## Result values
+
+Exactly three, spelled out everywhere (no abbreviations) with hover tooltips:
+
+- **OK** — Acceptable. Product/process meets and conforms to standard. No non-conformity found.
+- **Not OK** — Not acceptable. Product/process has deviations from standard.
+- **Not Audited** — Not audited. A reason is required.
+
+Mandatory rules (enforced client-side, server-side, and by DB CHECK constraints): any `NOT_OK`
+(row or sub-check) requires a **deviation**; `NOT_AUDITED` requires a **reason**; `NOT_OK` prompts
+for an **action taken** (recommended, not blocking).
+
+## Resumability & drafts
+
+`Submissions.IsComplete` distinguishes a draft (0) from a submission (1). Only `IsComplete = 1`
+feeds the dashboard views. On the New Audit tab, if an incomplete submission exists for the same
+department + date + shift, the app offers to resume it (server-side draft). There is also a
+localStorage safety net that offers to restore in-progress work and is cleared only after a
+confirmed 200.
 
 ## Admin access (pluggable, no auth yet)
 
-`Services/UserContext.cs` resolves the current user from an `X-Username` header today and
-checks `AuditUsers.IsAdmin`. With **no** username supplied it allows access (there is no auth
-yet, same as the TL Portal at this stage) so the QE team isn't locked out. When Windows Auth
-lands, only `UserContext` changes. The Admin tab sends the username you type as `X-Username`.
+`UserContext` reads an `X-Username` header and matches it against `AuditUsers` (Username, Email,
+or DisplayName), checking `IsAdmin`. With no username supplied it allows access (no auth yet). The
+Admin tab has a "Signed in as" picker that sends the chosen identity. `IsAdmin` is editable in the
+Users section (currently set on Mark Tapp, Nicky Gleeson, Steven White as a best guess).
 
-## Run locally / publish
+## Run / publish
 
 ```
 dotnet restore && dotnet run          # http://localhost:5000
 dotnet publish -c Release -o publish   # copy to IIS on csm-srv-16 (No Managed Code app pool)
 ```
 
-## Known placeholders (per the schema notes)
+Set `Storage:AttachmentRoot` in `appsettings.json` to a writable file share the app pool can reach.
 
-- `FailureModes` holds placeholder rows — swap them in the Admin tab, no code change.
-- `SeverityLevels.ChecksPerWeek` assumes 3 shifts × 5 days — adjust when confirmed.
-- `Results.SerialNo` is provisional — built and optional.
+## Known open points (build around them, editable — no deploy needed)
+
+- `FailureModes`/`CheckPoints` placeholder content and `SeverityLevels.ChecksPerWeek` (assumes
+  5 days × 3 shifts) are editable in Admin.
+- `AuditUsers.IsAdmin` is a best guess — editable in Admin.
+- Serial-number linkage into HCL Notes is out of scope and not built.
 - No authentication yet — see the pluggable seam above.
-
-## Dashboard notes
-
-- Compliance-vs-target, week-over-week, failures, by-customer, and failure-mode breakdown come
-  from the pre-built views. Pass-rate-by-severity is aggregated from `vw_WeeklyCompliance`;
-  pass-rate-by-location is computed from base rows for the week (no view provides it), with
-  `Ph 1 & 3` machines counting toward both Ph1 and Ph3.
-- Pie / customer charts are click-to-filter the failure board. "Wall display" enlarges KPIs
-  and charts and hides navigation for a QA-office TV.

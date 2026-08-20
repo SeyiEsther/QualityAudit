@@ -14,14 +14,11 @@ public class DashboardController : ControllerBase
 
     public DashboardController(QualityAuditContext db) => _db = db;
 
-    // -----------------------------------------------------------------------
     // GET /api/dashboard/summary?departmentId=&weekStarting=
-    // Current week and the previous week side by side, plus compliance-vs-target.
-    // -----------------------------------------------------------------------
     [HttpGet("summary")]
     public async Task<DashboardSummary> Summary([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
-        var week = weekStarting.HasValue ? WeekHelper.MondayOf(weekStarting.Value) : WeekHelper.ThisMonday();
+        var week = weekStarting.HasValue ? WeekHelper.WeekStarting(weekStarting.Value) : WeekHelper.ThisWeek();
         var prev = week.AddDays(-7);
 
         var summaries = await _db.Set<WeeklySummary>().AsNoTracking()
@@ -30,7 +27,7 @@ public class DashboardController : ControllerBase
 
         var compliance = await _db.Set<WeeklyCompliance>().AsNoTracking()
             .Where(v => v.DepartmentId == departmentId && v.WeekStarting == week)
-            .OrderBy(v => v.DisplayName)
+            .OrderBy(v => v.SortOrder)
             .ToListAsync();
 
         var result = new DashboardSummary
@@ -43,6 +40,7 @@ public class DashboardController : ControllerBase
             {
                 AuditItemId = c.AuditItemId,
                 DisplayName = c.DisplayName,
+                SortOrder = c.SortOrder,
                 Severity = c.Severity,
                 Expected = c.ExpectedChecks,
                 Actual = c.ActualChecks,
@@ -53,7 +51,6 @@ public class DashboardController : ControllerBase
             }).ToList()
         };
 
-        // Pass rate by severity from the compliance rows (already per-machine for the week).
         foreach (var sev in new[] { 3, 2, 1 })
         {
             var rows = compliance.Where(c => c.Severity == sev).ToList();
@@ -65,29 +62,31 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // Pass rate by location — no view provides it, so compute from base rows for the week.
+        // Pass rate by location — no view provides it; compute from base rows for the week,
+        // grouped by the machine's Location (department-agnostic: handles 'Assembly' too).
         var pairs = await _db.Results.AsNoTracking()
             .Where(r => (r.Outcome == "OK" || r.Outcome == "NOT_OK")
-                        && r.Submission!.DepartmentId == departmentId
+                        && r.Submission!.IsComplete
+                        && r.Submission.DepartmentId == departmentId
                         && r.Submission.WeekStarting == week)
             .Select(r => new { r.AuditItem!.Location, r.Outcome })
             .ToListAsync();
 
-        LocationRate LocFor(string name, string token)
-        {
-            var subset = pairs.Where(x => x.Location.Contains(token)).ToList();
-            var pass = subset.Count(x => x.Outcome == "OK");
-            var fail = subset.Count(x => x.Outcome == "NOT_OK");
-            return new LocationRate { Location = name, Total = pass + fail, Pass = pass, Fail = fail, Rate = Rate(pass, fail) };
-        }
-        result.PassByLocation = new List<LocationRate> { LocFor("Ph1", "1"), LocFor("Ph3", "3") };
+        result.PassByLocation = pairs
+            .GroupBy(x => x.Location)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var pass = g.Count(x => x.Outcome == "OK");
+                var fail = g.Count(x => x.Outcome == "NOT_OK");
+                return new LocationRate { Location = g.Key, Total = pass + fail, Pass = pass, Fail = fail, Rate = Rate(pass, fail) };
+            })
+            .ToList();
 
         return result;
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/dashboard/failures?departmentId=&weekStarting=  — severity 3 first.
-    // -----------------------------------------------------------------------
+    // GET /api/dashboard/failures?departmentId=&weekStarting=
     [HttpGet("failures")]
     public async Task<IEnumerable<VwFailure>> Failures([FromQuery] int? departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -95,7 +94,7 @@ public class DashboardController : ControllerBase
 
         if (weekStarting.HasValue)
         {
-            var week = WeekHelper.MondayOf(weekStarting.Value);
+            var week = WeekHelper.WeekStarting(weekStarting.Value);
             query = query.Where(v => v.WeekStarting == week);
         }
         if (departmentId is > 0)
@@ -104,40 +103,32 @@ public class DashboardController : ControllerBase
             query = query.Where(v => v.DepartmentName == name);
         }
 
-        return await query
-            .OrderByDescending(v => v.Severity).ThenByDescending(v => v.AuditDate)
-            .ToListAsync();
+        return await query.OrderByDescending(v => v.Severity).ThenByDescending(v => v.AuditDate).ToListAsync();
     }
 
-    // -----------------------------------------------------------------------
     // GET /api/dashboard/by-customer?departmentId=&weekStarting=
-    // -----------------------------------------------------------------------
     [HttpGet("by-customer")]
     public async Task<IEnumerable<FailuresByCustomer>> ByCustomer([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
-        var week = weekStarting.HasValue ? WeekHelper.MondayOf(weekStarting.Value) : WeekHelper.ThisMonday();
+        var week = weekStarting.HasValue ? WeekHelper.WeekStarting(weekStarting.Value) : WeekHelper.ThisWeek();
         return await _db.Set<FailuresByCustomer>().AsNoTracking()
             .Where(v => v.DepartmentId == departmentId && v.WeekStarting == week)
             .OrderByDescending(v => v.FailCount)
             .ToListAsync();
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/dashboard/failure-modes?departmentId=&weekStarting=
-    // -----------------------------------------------------------------------
-    [HttpGet("failure-modes")]
-    public async Task<IEnumerable<FailureModeBreakdown>> FailureModes([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
+    // GET /api/dashboard/check-points?departmentId=&weekStarting=
+    [HttpGet("check-points")]
+    public async Task<IEnumerable<CheckPointFailure>> CheckPoints([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
-        var week = weekStarting.HasValue ? WeekHelper.MondayOf(weekStarting.Value) : WeekHelper.ThisMonday();
-        return await _db.Set<FailureModeBreakdown>().AsNoTracking()
+        var week = weekStarting.HasValue ? WeekHelper.WeekStarting(weekStarting.Value) : WeekHelper.ThisWeek();
+        return await _db.Set<CheckPointFailure>().AsNoTracking()
             .Where(v => v.DepartmentId == departmentId && v.WeekStarting == week)
             .OrderByDescending(v => v.FailCount)
             .ToListAsync();
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/dashboard/overview?departmentId=&months=12  — rolling monthly trend.
-    // -----------------------------------------------------------------------
+    // GET /api/dashboard/overview?departmentId=&months=12
     [HttpGet("overview")]
     public async Task<IEnumerable<OverviewMonth>> Overview([FromQuery] int departmentId, [FromQuery] int months = 12)
     {
@@ -145,11 +136,10 @@ public class DashboardController : ControllerBase
         var firstOfThisMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
         var from = firstOfThisMonth.AddMonths(-(months - 1));
 
-        // Pull the audited rows for the window, then bucket by month in memory. Keeps us
-        // off any DateOnly.Year/Month SQL-translation edge cases.
         var raw = await _db.Results.AsNoTracking()
             .Where(r => (r.Outcome == "OK" || r.Outcome == "NOT_OK")
-                        && r.Submission!.DepartmentId == departmentId
+                        && r.Submission!.IsComplete
+                        && r.Submission.DepartmentId == departmentId
                         && r.Submission.AuditDate >= from)
             .Select(r => new { r.Submission!.AuditDate, r.Outcome })
             .ToListAsync();
@@ -161,6 +151,7 @@ public class DashboardController : ControllerBase
                 Pass = g.Count(x => x.Outcome == "OK"),
                 Fail = g.Count(x => x.Outcome == "NOT_OK")
             });
+
         var list = new List<OverviewMonth>();
         for (var m = from; m <= firstOfThisMonth; m = m.AddMonths(1))
         {
@@ -171,9 +162,7 @@ public class DashboardController : ControllerBase
             list.Add(new OverviewMonth
             {
                 Month = $"{m.Year:0000}-{m.Month:00}",
-                Total = total,
-                Pass = pass,
-                Fail = fail,
+                Total = total, Pass = pass, Fail = fail,
                 PassRate = Rate(pass, fail),
                 FailRate = total == 0 ? 0m : Math.Round(100m * fail / total, 1)
             });

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QualityAudit.Data;
 using QualityAudit.Models;
+using QualityAudit.Services;
 
 namespace QualityAudit.Controllers;
 
@@ -14,49 +15,60 @@ public class FormController : ControllerBase
     public FormController(QualityAuditContext db) => _db = db;
 
     /// <summary>
-    /// Everything the entry form needs in one call: the department, its machine list with
-    /// this week's live severity (from vw_CurrentSeverity), the severity rule set, and the
-    /// failure-mode / not-audited-reason dropdowns. The frontend builds the whole form from this.
+    /// Everything the entry form needs in one call. Machine severity is resolved for the
+    /// requested date's week directly from SeverityAssignments (NOT vw_CurrentSeverity, which
+    /// only knows today's week), falling back to AuditItems.DefaultSeverity.
     /// </summary>
     [HttpGet("{departmentId:int}")]
-    public async Task<IActionResult> Get(int departmentId)
+    public async Task<IActionResult> Get(int departmentId, [FromQuery] DateOnly? date)
     {
-        var department = await _db.Departments.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == departmentId);
+        var department = await _db.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == departmentId);
         if (department is null)
             return NotFound(new { error = $"Department {departmentId} not found." });
 
-        var machines = await _db.Set<CurrentSeverity>().AsNoTracking()
-            .Where(c => c.DepartmentId == departmentId)
-            .OrderBy(c => c.SortOrder)
-            .Select(c => new MachineDto
-            {
-                Id = c.AuditItemId,
-                DisplayName = c.DisplayName,
-                Location = c.Location,
-                SpecialMeasures = c.SpecialMeasures,
-                SortOrder = c.SortOrder,
-                Severity = c.Severity,
-                IsFallback = c.IsFallback != 0
-            })
+        var auditDate = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var weekStarting = WeekHelper.WeekStarting(auditDate);
+
+        var items = await _db.AuditItems.AsNoTracking()
+            .Where(i => i.DepartmentId == departmentId && i.IsActive)
+            .OrderBy(i => i.SortOrder)
             .ToListAsync();
 
-        var severityLevels = await _db.SeverityLevels.AsNoTracking()
-            .OrderBy(s => s.Severity).ToListAsync();
+        var itemIds = items.Select(i => i.Id).ToList();
+        var assignments = await _db.SeverityAssignments.AsNoTracking()
+            .Where(a => itemIds.Contains(a.AuditItemId) && a.WeekStarting <= weekStarting)
+            .ToListAsync();
 
-        var failureModes = await _db.FailureModes.AsNoTracking()
-            .Where(f => f.IsActive).OrderBy(f => f.SortOrder).ToListAsync();
+        var live = assignments
+            .GroupBy(a => a.AuditItemId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.WeekStarting).First().Severity);
 
-        var reasons = await _db.NotAuditedReasons.AsNoTracking()
-            .Where(r => r.IsActive).OrderBy(r => r.SortOrder).ToListAsync();
+        var machines = items.Select(i => new MachineDto
+        {
+            Id = i.Id,
+            DisplayName = i.DisplayName,
+            Location = i.Location,
+            SpecialMeasures = i.SpecialMeasures,
+            SortOrder = i.SortOrder,
+            Severity = live.TryGetValue(i.Id, out var sev) ? sev : i.DefaultSeverity,
+            IsFallback = !live.ContainsKey(i.Id)
+        }).ToList();
 
-        return Ok(new FormResponse
+        var response = new FormResponse
         {
             Department = department,
+            WeekStarting = weekStarting,
             Machines = machines,
-            SeverityLevels = severityLevels,
-            FailureModes = failureModes,
-            NotAuditedReasons = reasons
-        });
+            SeverityLevels = await _db.SeverityLevels.AsNoTracking().OrderBy(s => s.Severity).ToListAsync(),
+            CheckPoints = await _db.CheckPoints.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ToListAsync(),
+            Customers = await _db.Customers.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync(),
+            ActionTypes = await _db.ActionTypes.AsNoTracking().Where(a => a.IsActive).OrderBy(a => a.SortOrder).ToListAsync(),
+            NotAuditedReasons = await _db.NotAuditedReasons.AsNoTracking().Where(r => r.IsActive).OrderBy(r => r.SortOrder).ToListAsync(),
+            AuditUsers = await _db.AuditUsers.AsNoTracking().Where(u => u.IsActive).OrderBy(u => u.DisplayName)
+                .Select(u => new UserDto { Id = u.Id, DisplayName = u.DisplayName, Email = u.Email, IsAdmin = u.IsAdmin })
+                .ToListAsync()
+        };
+
+        return Ok(response);
     }
 }

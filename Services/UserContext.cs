@@ -4,9 +4,10 @@ using QualityAudit.Data;
 namespace QualityAudit.Services;
 
 /// <summary>
-/// Resolves the current user. There is no authentication yet (same as the TL Portal at
-/// this stage), so the identity source is deliberately pluggable: today it reads an
-/// 'X-Username' header. When Windows Auth is added later, only this class changes.
+/// Resolves the current user. There is no authentication yet (same as the TL Portal at this
+/// stage), so the identity source is deliberately pluggable: today it reads an 'X-Username'
+/// header and matches it against AuditUsers by Username, Email, or DisplayName. When Windows
+/// Auth is added later, only this class changes.
 /// </summary>
 public class UserContext
 {
@@ -19,7 +20,7 @@ public class UserContext
         _db = db;
     }
 
-    public string? CurrentUsername =>
+    public string? CurrentUser =>
         _http.HttpContext?.Request.Headers["X-Username"].FirstOrDefault();
 
     /// <summary>
@@ -29,12 +30,12 @@ public class UserContext
     /// </summary>
     public async Task<bool> IsAdminAsync()
     {
-        var username = CurrentUsername;
-        if (string.IsNullOrWhiteSpace(username))
+        var who = CurrentUser;
+        if (string.IsNullOrWhiteSpace(who))
             return true; // pluggable seam: no auth configured yet
 
-        var user = await _db.AuditUsers.AsNoTracking()
-            .FirstOrDefaultAsync(u => u.IsActive && u.Username == username);
+        var user = await _db.AuditUsers.AsNoTracking().FirstOrDefaultAsync(u =>
+            u.IsActive && (u.Username == who || u.Email == who || u.DisplayName == who));
 
         return user is { IsAdmin: true };
     }

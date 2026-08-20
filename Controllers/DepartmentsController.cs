@@ -13,7 +13,6 @@ public class DepartmentsController : ControllerBase
 
     public DepartmentsController(QualityAuditContext db) => _db = db;
 
-    /// <summary>Active departments (Sheet Metal, Assembly, ...) ordered for display.</summary>
     [HttpGet]
     public async Task<IEnumerable<Department>> Get() =>
         await _db.Departments.AsNoTracking()
