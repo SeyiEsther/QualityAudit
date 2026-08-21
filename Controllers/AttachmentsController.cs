@@ -58,6 +58,15 @@ public class AttachmentsController : ControllerBase
         return Ok(new AttachmentDto { Id = attachment.Id, FileName = attachment.FileName });
     }
 
+    /// <summary>Lists the attachments (id + original name) for a result — used for thumbnails.</summary>
+    [HttpGet("api/results/{resultId:int}/attachments")]
+    public async Task<IEnumerable<AttachmentDto>> List(int resultId) =>
+        await _db.ResultAttachments.AsNoTracking()
+            .Where(a => a.ResultId == resultId)
+            .OrderBy(a => a.Id)
+            .Select(a => new AttachmentDto { Id = a.Id, FileName = a.FileName })
+            .ToListAsync();
+
     /// <summary>Streams an attachment's bytes back with its stored content type.</summary>
     [HttpGet("api/attachments/{id:int}")]
     public async Task<IActionResult> Get(int id)

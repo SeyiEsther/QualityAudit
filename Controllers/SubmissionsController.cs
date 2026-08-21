@@ -130,8 +130,12 @@ public class SubmissionsController : ControllerBase
             {
                 ApplyResult(existing, input, severity);
                 // Replace this result's check-point answers (they carry no attachments).
+                // Clear + Add on the tracked collection so EF fixes up ResultId and marks
+                // the new rows Added / the old rows Deleted reliably.
                 _db.ResultCheckPoints.RemoveRange(existing.CheckPoints);
-                existing.CheckPoints = BuildCheckPoints(input);
+                existing.CheckPoints.Clear();
+                foreach (var cp in BuildCheckPoints(input))
+                    existing.CheckPoints.Add(cp);
             }
         }
 

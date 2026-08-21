@@ -102,6 +102,8 @@ h3{margin:0 0 10px;font-size:14px;font-weight:700}
 .req-flag{font-size:11px;color:var(--red);font-weight:700}
 .photos{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .thumb{width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+.thumb.sm{width:38px;height:38px}
+.fail-thumbs{display:inline-flex;gap:4px;align-items:center}
 .addphoto{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--steel);cursor:pointer;background:#fff}
 .ro-detail{width:100%;padding:0 14px 12px 54px;display:flex;flex-direction:column;gap:6px}
 .ro-tags{display:flex;gap:6px;flex-wrap:wrap}
@@ -693,9 +695,16 @@ function renderFailBoard(){
   if(!list.length){ host.innerHTML='<div class="clean">No failures'+(dashFilter?' for this filter':' this week')+'.</div>'; return; }
   host.innerHTML='<div class="fail-list">'+list.map(f=>{ const lv=sevInfo(f.severity);
     const subs=[ f.plansResult==='NOT_OK'?'<span class="tag warn">Plans</span>':'', f.ndtResult==='NOT_OK'?'<span class="tag warn">NDT</span>':'', f.areaDocsResult==='NOT_OK'?'<span class="tag warn">Docs</span>':'' ].join('');
-    const photo=f.attachmentCount>0?'<span class="tag">📷 '+f.attachmentCount+'</span>':'';
+    const photo=f.attachmentCount>0?'<span class="fail-thumbs" id="ft-'+f.resultId+'"></span>':'';
     return '<div class="fail"><div class="sev-tag" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</div><div class="fail-body"><div class="fail-top"><span class="fail-name">'+esc(f.machineName)+'</span><span class="fail-when">'+esc(f.auditDate)+' · '+esc(f.shift)+'</span></div>'+
       '<div class="fail-dev">'+esc(f.deviation||'(no deviation noted)')+'</div><div class="fail-tags">'+esc(f.location)+(f.partNo?' <span class="mono tag">'+esc(f.partNo)+'</span>':'')+(f.customer?'<span class="tag">'+esc(f.customer)+'</span>':'')+(f.actionTaken?'<span class="tag act">'+esc(f.actionTaken)+'</span>':'')+subs+photo+'</div></div></div>'; }).join('')+'</div>';
+  loadFailThumbs(list);
+}
+async function loadFailThumbs(list){
+  for(const f of list){ if(!f.attachmentCount) continue; const host=document.getElementById('ft-'+f.resultId); if(!host) continue;
+    try{ const atts=await api('/api/results/'+f.resultId+'/attachments'); host.innerHTML=atts.map(a=>'<img class="thumb sm" src="/api/attachments/'+a.id+'" title="'+esc(a.fileName)+'">').join(''); }
+    catch(_){ host.innerHTML='<span class="tag">📷 '+f.attachmentCount+'</span>'; }
+  }
 }
 function clearDashFilter(){ dashFilter=null; renderFailBoard(); }
 function drawCpChart(cps){
