@@ -51,6 +51,34 @@ h3{margin:0 0 10px;font-size:14px;font-weight:700}
 .leg .leg-hd{font-weight:700;font-size:13px;display:flex;justify-content:space-between;gap:8px}
 .leg .leg-freq{font-size:11px;color:var(--muted);font-weight:600}
 .leg .leg-ins{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35}
+.legend-toggle{margin-top:12px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+.legend.collapsed{display:none}
+.legend-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.legend-strip .ls{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:5px 12px;background:#fff}
+.legend-strip .ls .sw{width:12px;height:12px;border-radius:3px}
+/* attainment gauge */
+.gauge-card{display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.gauge{position:relative;width:180px;height:180px;flex-shrink:0}
+.gauge svg{transform:rotate(-90deg)}
+.gauge-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.gauge-pct{font-size:34px;font-weight:800;font-family:ui-monospace,Menlo,monospace;line-height:1}
+.gauge-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.gauge-info h2{margin:0 0 6px;font-size:20px}
+.gauge-info .gi-line{font-size:14px;color:var(--muted);margin-bottom:4px}
+.gauge-info .gi-big{font-size:15px;font-weight:700;color:var(--ink)}
+body.tv .gauge{width:260px;height:260px}
+body.tv .gauge-pct{font-size:52px}
+/* coverage grid */
+.cov-summary{font-size:14px;font-weight:600;margin-bottom:12px}
+.cov-scroll{overflow-x:auto}
+.cov-grid{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+.cov-grid th,.cov-grid td{border:1px solid var(--line);padding:7px 9px;text-align:center}
+.cov-grid th{background:#f4f7fb;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.cov-grid td.cov-name{text-align:left;font-weight:600}
+.cov-grid td.cov-day.hit{background:var(--green-bg);color:var(--green);font-weight:700}
+.cov-grid tr.under td.cov-target{color:var(--red);font-weight:800}
+.cov-grid td.cov-target.met{color:var(--green);font-weight:800}
+.cov-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
 
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 10px;flex-wrap:wrap}
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -235,6 +263,7 @@ body.tv .pane{max-width:1600px}
   <nav class="tabs">
     <button id="tab-entry" class="on" onclick="showView('entry')">New Audit</button>
     <button id="tab-dash" onclick="showView('dashboard')">Dashboard</button>
+    <button id="tab-coverage" onclick="showView('coverage')">Coverage</button>
     <button id="tab-history" onclick="showView('history')">History</button>
     <button id="tab-admin" onclick="showView('admin')">Admin</button>
   </nav>
@@ -258,10 +287,11 @@ body.tv .pane{max-width:1600px}
           <div style="display:flex;gap:8px;align-items:center"><input id="h-dept" readonly style="background:#eef1f5;font-weight:700" /><button class="ghost" onclick="changeDepartment()">Change</button></div>
         </label>
         <label class="field"><span>Date</span><input id="h-date" type="date" onchange="onDateShiftChange()" /></label>
-        <label class="field"><span>Shift</span><select id="h-shift" onchange="onDateShiftChange()"><option>Early</option><option>Late</option><option>Nights</option></select></label>
+        <label class="field"><span>Shift</span><select id="h-shift" onchange="onDateShiftChange()"><option>1st</option><option>2nd</option><option>3rd</option></select></label>
         <label class="field"><span>Auditor</span><select id="h-auditor"></select></label>
         <label class="field"><span id="arealine-lbl">Area / Line</span><input id="h-arealine" /></label>
       </div>
+      <button type="button" class="legend-toggle" onclick="toggleLegend()"><span id="legend-caret">▾</span> RAG guide</button>
       <div id="sev-legend" class="legend"></div>
     </section>
 
@@ -303,18 +333,33 @@ body.tv .pane{max-width:1600px}
   <div class="selrow">
     <label class="field"><span>Department</span><select id="d-dept" onchange="loadDashboard()"></select></label>
     <label class="field"><span>Week of (any day)</span><input id="d-week" type="date" onchange="loadDashboard()" /></label>
+    <label class="field"><span>Attainment period</span><select id="d-period" onchange="loadDashboard()"><option value="week">This week</option><option value="month" selected>This month</option><option value="year">Rolling 12 months</option></select></label>
     <button class="ghost" onclick="loadDashboard()">Refresh</button>
     <button id="dash-tvbtn" class="ghost" onclick="toggleTv()">Wall display</button>
   </div>
   <div id="dash-body"></div>
 </main>
 
+<!-- ===================== COVERAGE ===================== -->
+<main id="view-coverage" class="pane hidden">
+  <div class="selrow">
+    <label class="field"><span>Department</span><select id="cov-dept" onchange="loadCoverage()"></select></label>
+    <label class="field"><span>Week of (any day)</span><input id="cov-week" type="date" onchange="loadCoverage()" /></label>
+    <button class="ghost" onclick="covWeek(-7)">&larr; Prev week</button>
+    <button class="ghost" onclick="covWeek(7)">Next week &rarr;</button>
+    <button class="ghost" onclick="loadCoverage()">Refresh</button>
+  </div>
+  <div id="cov-body"></div>
+</main>
+
 <!-- ===================== HISTORY ===================== -->
 <main id="view-history" class="pane hidden">
   <div class="selrow">
     <label class="field"><span>Department</span><select id="hist-dept"></select></label>
+    <label class="field"><span>Shift</span><select id="hist-shift"><option value="">All</option><option>1st</option><option>2nd</option><option>3rd</option></select></label>
     <label class="field"><span>From</span><input id="hist-from" type="date" /></label>
     <label class="field"><span>To</span><input id="hist-to" type="date" /></label>
+    <label class="field" style="min-width:180px"><span>Search deviations / actions</span><input id="hist-search" placeholder="e.g. torque, 4-D…" onkeydown="if(event.key==='Enter')loadHistory()" /></label>
     <button class="ghost" onclick="loadHistory()">Apply</button>
     <button class="ghost" onclick="showOverview()">12-month overview</button>
   </div>
@@ -386,7 +431,7 @@ const rowState=r=>anyNok(r)?'nok':isAudited(r)?'ok':'todo';
 // ==========================================================================
 // View switching
 // ==========================================================================
-const PANES={entry:'view-entry',confirm:'view-confirm',dashboard:'view-dashboard',history:'view-history',historyDetail:'view-history-detail',overview:'view-overview',admin:'view-admin'};
+const PANES={entry:'view-entry',confirm:'view-confirm',dashboard:'view-dashboard',coverage:'view-coverage',history:'view-history',historyDetail:'view-history-detail',overview:'view-overview',admin:'view-admin'};
 function showView(v){
   currentView=v;
   Object.values(PANES).forEach(id=>document.getElementById(id).classList.add('hidden'));
@@ -394,14 +439,17 @@ function showView(v){
   document.getElementById('footbar').classList.toggle('hidden', !(v==='entry'&&FORM));
   document.getElementById('tab-entry').classList.toggle('on', v==='entry'||v==='confirm');
   document.getElementById('tab-dash').classList.toggle('on', v==='dashboard');
+  document.getElementById('tab-coverage').classList.toggle('on', v==='coverage');
   document.getElementById('tab-history').classList.toggle('on', v==='history'||v==='historyDetail'||v==='overview');
   document.getElementById('tab-admin').classList.toggle('on', v==='admin');
   if(v==='dashboard') loadDashboard();
+  if(v==='coverage') loadCoverage();
   if(v==='history') loadHistory();
   if(v==='admin') loadAdmin();
   if(v==='entry') checkDraft();
   if(v!=='entry') window.scrollTo(0,0);
 }
+function toggleLegend(){ const l=document.getElementById('sev-legend'); l.classList.toggle('collapsed'); document.getElementById('legend-caret').textContent=l.classList.contains('collapsed')?'▸':'▾'; }
 
 // ==========================================================================
 // Departments + init
@@ -410,9 +458,9 @@ async function loadDepartments(){
   try{
     DEPARTMENTS=await api('/api/departments');
     document.getElementById('dept-btns').innerHTML = DEPARTMENTS.map(d=>'<button class="dept-btn" onclick="chooseDepartment('+d.id+')">'+esc(d.name)+(d.formRef?'<span class="dref">'+esc(d.formRef)+'</span>':'')+'</button>').join('') || '<div class="muted">No active departments.</div>';
-    ['d-dept','hist-dept'].forEach(id=>{ const sel=document.getElementById(id); const all=(id==='hist-dept')?'<option value="">All</option>':''; sel.innerHTML=all+DEPARTMENTS.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join(''); });
+    ['d-dept','cov-dept','hist-dept'].forEach(id=>{ const sel=document.getElementById(id); const all=(id==='hist-dept')?'<option value="">All</option>':''; sel.innerHTML=all+DEPARTMENTS.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join(''); });
     // Pre-load users (with IsAdmin) from the first department's form.
-    if(DEPARTMENTS.length){ try{ const f=await api('/api/form/'+DEPARTMENTS[0].id); USERS=f.auditUsers||[]; populateUserPickers(); }catch(_){} }
+    if(DEPARTMENTS.length){ try{ const f=await api('/api/form/'+DEPARTMENTS[0].id); USERS=f.auditUsers||[]; (f.severityLevels||[]).forEach(l=>SEVLEVELS[l.severity]=l); populateUserPickers(); }catch(_){} }
   }catch(e){ document.getElementById('dept-btns').innerHTML='<div class="muted">Could not load departments: '+esc(e.message)+'</div>'; }
 }
 function populateUserPickers(){
@@ -656,26 +704,52 @@ function loadDetailIntoForm(d){
 // ==========================================================================
 let charts={}; function destroyChart(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } }
 let DASH_FAILURES=[], dashFilter=null;
+function monthFirst(iso){ const d=new Date(iso+'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)).toISOString().slice(0,10); }
+function monthLast(iso){ const d=new Date(iso+'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).toISOString().slice(0,10); }
+function periodRange(iso,period){
+  if(period==='week'){ const f=weekStartingISO(iso); const t=new Date(Date.parse(f+'T00:00:00Z')+6*86400000).toISOString().slice(0,10); return {from:f,to:t}; }
+  if(period==='year'){ const to=monthLast(iso); const d=new Date(to+'T00:00:00Z'); const from=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-11,1)).toISOString().slice(0,10); return {from,to}; }
+  return {from:monthFirst(iso),to:monthLast(iso)};
+}
 async function loadDashboard(){
   const dept=val('d-dept'); if(!dept){ document.getElementById('dash-body').innerHTML='<div class="clean">No department.</div>'; return; }
   const week=weekStartingISO(val('d-week'));
   const q='?departmentId='+dept+'&weekStarting='+week;
+  const pr=periodRange(val('d-week'), val('d-period'));
+  const aq='?departmentId='+dept+'&from='+pr.from+'&to='+pr.to;
   const body=document.getElementById('dash-body');
   try{
-    const [summary,failures,cps,customers]=await Promise.all([ api('/api/dashboard/summary'+q), api('/api/dashboard/failures'+q), api('/api/dashboard/check-points'+q), api('/api/dashboard/by-customer'+q) ]);
+    const [attain,summary,failures,cps,customers]=await Promise.all([ api('/api/dashboard/attainment'+aq), api('/api/dashboard/summary'+q), api('/api/dashboard/failures'+q), api('/api/dashboard/check-points'+q), api('/api/dashboard/by-customer'+q) ]);
     DASH_FAILURES=failures||[]; dashFilter=null;
-    renderDashboard(summary,cps,customers);
+    renderDashboard(summary,cps,customers,attain);
   }catch(e){ body.innerHTML='<div class="card clean">Could not load the dashboard.<br>'+esc(e.message)+'</div>'; }
 }
-function renderDashboard(s,cps,customers){
+function legendStripHtml(){
+  return '<div class="legend-strip">'+[3,2,1].map(s=>{ const l=sevInfo(s); return '<div class="ls"><span class="sw" style="background:'+esc(l.colourHex)+'"></span>'+esc((l.name||'').toUpperCase())+(l.auditName?(' · '+esc(l.auditName)):'')+(l.frequencyLabel?(' · '+esc(l.frequencyLabel)):'')+'</div>'; }).join('')+'</div>';
+}
+function gaugeHtml(a){
+  if(!a) return '';
+  const pct=Math.max(0,Math.min(100,a.attainmentPct)); const target=a.targetPct||0;
+  const tone = a.attainmentPct>=target ? '#15803d' : (a.attainmentPct>=target-5 ? '#b45309' : '#b91c1c');
+  const r=80, C=2*Math.PI*r, prog=C*(pct/100);
+  const periodLbl={week:'this week',month:'this month',year:'rolling 12 months'}[val('d-period')]||'';
+  return '<div class="card gauge-card"><div class="gauge"><svg width="180" height="180" viewBox="0 0 180 180">'+
+    '<circle cx="90" cy="90" r="'+r+'" fill="none" stroke="#e9edf3" stroke-width="16"/>'+
+    '<circle cx="90" cy="90" r="'+r+'" fill="none" stroke="'+tone+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+prog+' '+(C-prog)+'"/></svg>'+
+    '<div class="gauge-mid"><div class="gauge-pct" style="color:'+tone+'">'+a.attainmentPct+'%</div><div class="gauge-sub">against '+target+'% target</div></div></div>'+
+    '<div class="gauge-info"><h2>Audit attainment</h2><div class="gi-line">'+esc(periodLbl)+' · '+esc(a.from)+' → '+esc(a.to)+'</div>'+
+    '<div class="gi-big">'+a.actualChecks.toLocaleString()+' of '+a.expectedChecks.toLocaleString()+' audits — '+a.attainmentPct+'% against a '+target+'% target</div></div></div>';
+}
+function renderDashboard(s,cps,customers,att){
   const body=document.getElementById('dash-body'); const cur=s.current, prev=s.previous;
+  const topHtml=gaugeHtml(att)+legendStripHtml();
   const rateDelta=cur.passRate-prev.passRate, failDelta=cur.failCount-prev.failCount;
   const kpis=[ ['Shifts logged',cur.shiftsLogged,'',''], ['Checks completed',cur.passCount+cur.failCount,'',''],
     ['Pass rate',cur.passRate+'%',cur.passRate>=90?'green':'red',(rateDelta>=0?'up':'down')+'|'+(rateDelta>=0?'+':'')+rateDelta.toFixed(1)+' pts vs last wk'],
     ['Open failures',cur.failCount,cur.failCount>0?'red':'green',(failDelta<=0?'up':'down')+'|'+(failDelta>0?'+':'')+failDelta+' vs last wk'] ];
   const compliance=(s.compliance||[]).map(c=>{ const lv=sevInfo(c.severity);
     return '<div class="comp-row"><div class="comp-name"><span class="dot" style="background:'+esc(lv.colourHex)+'"></span>'+esc(c.displayName)+'</div><div class="comp-target '+(c.underTarget?'under':'met')+'">'+c.actual+'/'+c.expected+'</div><div class="muted" style="font-size:12px">'+c.pass+' ok · '+c.fail+' fail'+(c.notAudited?' · '+c.notAudited+' n/a':'')+'</div></div>'; }).join('')||'<div class="clean">No checks recorded this week.</div>';
-  body.innerHTML='<div class="kpi-row">'+kpis.map(([lbl,v,tone,delta])=>{ const d=delta?'<div class="kpi-delta '+delta.split('|')[0]+'">'+esc(delta.split('|')[1])+'</div>':''; return '<div class="kpi '+tone+'"><div class="kpi-val">'+v+'</div><div class="kpi-lbl">'+lbl+'</div>'+d+'</div>'; }).join('')+'</div>'+
+  body.innerHTML=topHtml+'<div class="kpi-row">'+kpis.map(([lbl,v,tone,delta])=>{ const d=delta?'<div class="kpi-delta '+delta.split('|')[0]+'">'+esc(delta.split('|')[1])+'</div>':''; return '<div class="kpi '+tone+'"><div class="kpi-val">'+v+'</div><div class="kpi-lbl">'+lbl+'</div>'+d+'</div>'; }).join('')+'</div>'+
     '<div class="dash-grid"><div style="display:flex;flex-direction:column;gap:14px">'+
       '<section class="card"><div class="card-hd"><h3>Compliance against target</h3><span class="hd-note">week of '+esc(s.weekStarting)+'</span></div>'+compliance+'</section>'+
       '<section class="card"><div class="card-hd"><h3>Failure board</h3><span class="hd-note" id="fb-note">severity 3 first</span></div><div id="failboard"></div></section>'+
@@ -722,12 +796,37 @@ function drawCustChart(custs){
 function toggleTv(){ document.body.classList.toggle('tv'); }
 
 // ==========================================================================
+// Coverage
+// ==========================================================================
+function covWeek(delta){ const d=new Date(Date.parse((val('cov-week')||todayISO())+'T00:00:00Z')+delta*86400000); setVal('cov-week', d.toISOString().slice(0,10)); loadCoverage(); }
+function dayLabel(iso){ const d=new Date(iso+'T00:00:00Z'); return d.toLocaleDateString('en-GB',{weekday:'short',timeZone:'UTC'})+' '+d.getUTCDate(); }
+async function loadCoverage(){
+  const dept=val('cov-dept'); const host=document.getElementById('cov-body');
+  if(!dept){ host.innerHTML='<div class="clean">No department.</div>'; return; }
+  host.innerHTML='<div class="clean">Loading…</div>';
+  try{ const c=await api('/api/coverage?departmentId='+dept+'&weekStarting='+weekStartingISO(val('cov-week'))); renderCoverage(c); }
+  catch(e){ host.innerHTML='<div class="card clean">Could not load coverage.<br>'+esc(e.message)+'</div>'; }
+}
+function renderCoverage(c){
+  const host=document.getElementById('cov-body');
+  const head='<tr><th>#</th><th class="cov-name" style="text-align:left">Item</th><th>Sev</th><th>Target</th>'+c.days.map(d=>'<th>'+esc(dayLabel(d))+'</th>').join('')+'</tr>';
+  const rows=c.items.map(it=>{ const lv=sevInfo(it.severity); const under=it.actual<it.expected;
+    const dayCells=it.dayCounts.map(n=>'<td class="cov-day'+(n>0?' hit':'')+'">'+(n>0?n:'')+'</td>').join('');
+    const who=(it.auditors&&it.auditors.length)?(' title="'+esc(it.auditors.join(', ')+(it.shifts.length?(' · shifts '+it.shifts.join(', ')):''))+'"'):'';
+    return '<tr class="'+(under?'under':'')+'"'+who+'><td>'+(it.sortOrder||'')+'</td><td class="cov-name"><span class="cov-dot" style="background:'+esc(lv.colourHex)+'"></span>'+esc(it.displayName)+' <span class="muted" style="font-size:11px">('+esc(it.location)+')</span></td><td>'+esc((lv.name||'')[0]||'')+'</td><td class="cov-target '+(under?'':'met')+'">'+it.actual+'/'+it.expected+'</td>'+dayCells+'</tr>'; }).join('');
+  host.innerHTML='<div class="card"><div class="cov-summary">'+c.itemsAtTarget+' of '+c.itemCount+' items at or above target · week of '+esc(c.weekStarting)+'</div>'+
+    '<div class="cov-scroll"><table class="cov-grid"><thead>'+head+'</thead><tbody>'+(rows||'<tr><td colspan="'+(4+c.days.length)+'" class="clean">No active items.</td></tr>')+'</tbody></table></div></div>';
+}
+
+// ==========================================================================
 // History
 // ==========================================================================
 async function loadHistory(){
   const host=document.getElementById('history-body');
   let q='?from='+encodeURIComponent(val('hist-from'))+'&to='+encodeURIComponent(val('hist-to'));
   if(val('hist-dept')) q+='&departmentId='+val('hist-dept');
+  if(val('hist-shift')) q+='&shift='+encodeURIComponent(val('hist-shift'));
+  if(val('hist-search').trim()) q+='&search='+encodeURIComponent(val('hist-search').trim());
   host.innerHTML='<div class="clean">Loading…</div>';
   try{
     const list=await api('/api/submissions'+q);
@@ -777,10 +876,13 @@ function loadAdmin(){
     '<section class="card admin-sec"><div class="card-hd"><h3>Machines</h3></div><div class="selrow"><label class="field"><span>Department</span><select id="adm-mac-dept" onchange="loadMachines()"></select></label><button class="ghost" onclick="loadMachines()">Load</button></div><div id="adm-mac-body"></div></section>'+
     '<section class="card admin-sec"><div class="card-hd"><h3>Users</h3></div><div id="adm-usr-body"></div></section>'+
     '<section class="card admin-sec"><div class="card-hd"><h3>Customers</h3></div><div id="adm-cust-body"></div></section>'+
-    '<section class="card admin-sec"><div class="card-hd"><h3>Check points</h3></div><div id="adm-cp-body"></div></section>';
+    '<section class="card admin-sec"><div class="card-hd"><h3>Check points</h3></div><div id="adm-cp-body"></div></section>'+
+    '<section class="card admin-sec"><div class="card-hd"><h3>Action types</h3></div><div id="adm-act-body"></div></section>'+
+    '<section class="card admin-sec"><div class="card-hd"><h3>Severity levels <span class="hd-note">frequency + instruction</span></h3></div><div id="adm-sl-body"></div></section>'+
+    '<section class="card admin-sec"><div class="card-hd"><h3>Department targets</h3></div><div id="adm-dep-body"></div></section>';
   ['adm-sev-dept','adm-mac-dept'].forEach(id=>{ document.getElementById(id).innerHTML=DEPARTMENTS.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join(''); });
   if(!document.getElementById('adm-sev-week').value) setVal('adm-sev-week', nextTuesdayISO());
-  loadSeverityReview(); loadMachines(); loadUsers(); loadCustomers(); loadCheckPoints();
+  loadSeverityReview(); loadMachines(); loadUsers(); loadCustomers(); loadCheckPoints(); loadActionTypes(); loadSeverityLevels(); loadDepartmentsAdmin();
 }
 
 let SEV_REVIEW=[];
@@ -874,6 +976,50 @@ async function cpRetire(id,active){ const c=CP_LIST.find(x=>x.id===id); if(!c) r
 async function addCheckPoint(){ const body={ code:val('ncp-code').trim(), label:val('ncp-label').trim(), minSeverity:+val('ncp-min'), conditional:document.getElementById('ncp-cond').checked, sortOrder:(CP_LIST.length+1)*10, isActive:true };
   if(!body.code||!body.label){ toast('Code and label required',true); return; } try{ await adminApi('/api/admin/check-points','POST',body); toast('Check point added'); loadCheckPoints(); }catch(e){ toast('Failed: '+e.message,true); } }
 
+let ACT_LIST=[];
+async function loadActionTypes(){
+  const host=document.getElementById('adm-act-body'); host.innerHTML='<div class="clean">Loading…</div>';
+  try{ ACT_LIST=await adminApi('/api/admin/action-types');
+    host.innerHTML='<div class="adm-grid" style="grid-template-columns:1fr 2fr auto auto;background:#f4f7fb;border-radius:8px;padding:8px"><input id="na-code" placeholder="CODE"><input id="na-label" placeholder="Label"><span></span><button class="sm-btn" onclick="addActionType()">Add</button></div>'+
+      ACT_LIST.map(a=>'<div class="adm-grid'+(a.isActive?'':' retired')+'" style="grid-template-columns:1fr 2fr auto auto" id="act-'+a.id+'"><input value="'+esc(a.code)+'" onchange="actEdit('+a.id+',\'code\',this.value)"><input value="'+esc(a.label)+'" onchange="actEdit('+a.id+',\'label\',this.value)"><span></span><button class="sm-btn '+(a.isActive?'danger':'')+'" onclick="actRetire('+a.id+','+(a.isActive?'false':'true')+')">'+(a.isActive?'Retire':'Restore')+'</button></div>').join('');
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+const actDraft={};
+function actEdit(id,key,v){ actDraft[id]=actDraft[id]||{}; actDraft[id][key]=v; saveActionType(id); }
+async function saveActionType(id){ const a=ACT_LIST.find(x=>x.id===id); if(!a)return; const p=actDraft[id]||{};
+  const body={ id, code:p.code??a.code, label:p.label??a.label, sortOrder:a.sortOrder, isActive:a.isActive };
+  try{ const r=await adminApi('/api/admin/action-types/'+id,'PUT',body); Object.assign(a,r); toast('Saved'); }catch(e){ toast('Failed: '+e.message,true); } }
+async function actRetire(id,active){ const a=ACT_LIST.find(x=>x.id===id); if(!a)return; const body={ id, code:a.code, label:a.label, sortOrder:a.sortOrder, isActive:active };
+  try{ const r=await adminApi('/api/admin/action-types/'+id,'PUT',body); Object.assign(a,r); loadActionTypes(); }catch(e){ toast('Failed: '+e.message,true); } }
+async function addActionType(){ const body={ code:val('na-code').trim(), label:val('na-label').trim(), sortOrder:(ACT_LIST.length+1)*10, isActive:true };
+  if(!body.code||!body.label){ toast('Code and label required',true); return; } try{ await adminApi('/api/admin/action-types','POST',body); toast('Added'); loadActionTypes(); }catch(e){ toast('Failed: '+e.message,true); } }
+
+let SL_LIST=[];
+async function loadSeverityLevels(){
+  const host=document.getElementById('adm-sl-body'); host.innerHTML='<div class="clean">Loading…</div>';
+  try{ SL_LIST=await adminApi('/api/admin/severity-levels');
+    host.innerHTML=SL_LIST.map(l=>'<div class="adm-grid" style="grid-template-columns:auto 90px 1fr auto" id="sl-'+l.severity+'"><span class="pill" style="background:'+esc(l.colourHex)+'">'+esc(l.name.toUpperCase())+'</span><input type="number" min="1" value="'+l.checksPerWeek+'" onchange="slEdit('+l.severity+',\'checksPerWeek\',this.value)" title="Checks per week"><input value="'+esc(l.instruction)+'" onchange="slEdit('+l.severity+',\'instruction\',this.value)"><button class="sm-btn" onclick="saveSeverityLevel('+l.severity+')">Save</button></div>').join('');
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+const slDraft={};
+function slEdit(sev,key,v){ slDraft[sev]=slDraft[sev]||{}; slDraft[sev][key]=v; }
+async function saveSeverityLevel(sev){ const l=SL_LIST.find(x=>x.severity===sev); if(!l)return; const p=slDraft[sev]||{};
+  const body={ checksPerWeek:+(p.checksPerWeek??l.checksPerWeek), instruction:p.instruction??l.instruction };
+  try{ const r=await adminApi('/api/admin/severity-levels/'+sev,'PUT',body); Object.assign(l,r); SEVLEVELS[sev]=l; toast('Saved'); }catch(e){ toast('Failed: '+e.message,true); } }
+
+let DEP_LIST=[];
+async function loadDepartmentsAdmin(){
+  const host=document.getElementById('adm-dep-body'); host.innerHTML='<div class="clean">Loading…</div>';
+  try{ DEP_LIST=await adminApi('/api/admin/departments');
+    host.innerHTML=DEP_LIST.map(d=>'<div class="adm-grid" style="grid-template-columns:2fr 110px auto" id="dep-'+d.id+'"><span style="font-weight:600">'+esc(d.name)+' <span class="muted" style="font-size:11px">'+(d.hasNdtCheck?'NDT':'no NDT')+'</span></span><input type="number" min="0" max="100" step="0.1" value="'+d.targetPercent+'" onchange="depEdit('+d.id+',this.value)" title="Target %"><button class="sm-btn" onclick="saveDepartment('+d.id+')">Save</button></div>').join('');
+  }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
+}
+const depDraft={};
+function depEdit(id,v){ depDraft[id]=+v; }
+async function saveDepartment(id){ const d=DEP_LIST.find(x=>x.id===id); if(!d)return;
+  const body={ targetPercent:(depDraft[id]!=null?depDraft[id]:d.targetPercent), sortOrder:d.sortOrder, isActive:d.isActive };
+  try{ const r=await adminApi('/api/admin/departments/'+id,'PUT',body); Object.assign(d,r); toast('Saved'); }catch(e){ toast('Failed: '+e.message,true); } }
+
 // ==========================================================================
 // Filter chips + init
 // ==========================================================================
@@ -884,6 +1030,7 @@ document.getElementById('filter-chips').addEventListener('click', e=>{ const btn
 
 setVal('h-date', todayISO());
 setVal('d-week', weekStartingISO(todayISO()));
+setVal('cov-week', todayISO());
 setVal('hist-from', daysAgoISO(30)); setVal('hist-to', todayISO());
 loadDepartments();
 </script>

@@ -280,5 +280,91 @@ public class AdminController : ControllerBase
         return Ok(cp);
     }
 
+    // ===================== Action types =====================
+
+    [HttpGet("action-types")]
+    public async Task<IActionResult> GetActionTypes()
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        return Ok(await _db.ActionTypes.AsNoTracking().OrderBy(a => a.SortOrder).ToListAsync());
+    }
+
+    [HttpPost("action-types")]
+    public async Task<IActionResult> CreateActionType([FromBody] ActionTypeInput input)
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        if (string.IsNullOrWhiteSpace(input.Code) || string.IsNullOrWhiteSpace(input.Label))
+            return BadRequest(new { error = "Code and label are required." });
+
+        var at = new ActionType { Code = input.Code.Trim(), Label = input.Label.Trim(), SortOrder = input.SortOrder, IsActive = input.IsActive };
+        _db.ActionTypes.Add(at);
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return StatusCode(500, new { error = "Could not add action type: " + ex.Message }); }
+        return Ok(at);
+    }
+
+    [HttpPut("action-types/{id:int}")]
+    public async Task<IActionResult> UpdateActionType(int id, [FromBody] ActionTypeInput input)
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        var at = await _db.ActionTypes.FirstOrDefaultAsync(a => a.Id == id);
+        if (at is null) return NotFound(new { error = $"Action type {id} not found." });
+
+        if (!string.IsNullOrWhiteSpace(input.Code)) at.Code = input.Code.Trim();
+        if (!string.IsNullOrWhiteSpace(input.Label)) at.Label = input.Label.Trim();
+        at.SortOrder = input.SortOrder;
+        at.IsActive = input.IsActive;
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return StatusCode(500, new { error = "Could not save action type: " + ex.Message }); }
+        return Ok(at);
+    }
+
+    // ===================== Severity levels (frequency + instruction) =====================
+
+    [HttpGet("severity-levels")]
+    public async Task<IActionResult> GetSeverityLevels()
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        return Ok(await _db.SeverityLevels.AsNoTracking().OrderBy(s => s.Severity).ToListAsync());
+    }
+
+    [HttpPut("severity-levels/{severity:int}")]
+    public async Task<IActionResult> UpdateSeverityLevel(int severity, [FromBody] SeverityLevelInput input)
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        var level = await _db.SeverityLevels.FirstOrDefaultAsync(s => s.Severity == (byte)severity);
+        if (level is null) return NotFound(new { error = $"Severity level {severity} not found." });
+
+        if (input.ChecksPerWeek > 0) level.ChecksPerWeek = input.ChecksPerWeek;
+        if (!string.IsNullOrWhiteSpace(input.Instruction)) level.Instruction = input.Instruction.Trim();
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return StatusCode(500, new { error = "Could not save severity level: " + ex.Message }); }
+        return Ok(level);
+    }
+
+    // ===================== Departments (target percent) =====================
+
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments()
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        return Ok(await _db.Departments.AsNoTracking().OrderBy(d => d.SortOrder).ToListAsync());
+    }
+
+    [HttpPut("departments/{id:int}")]
+    public async Task<IActionResult> UpdateDepartment(int id, [FromBody] DepartmentInput input)
+    {
+        var guard = await GuardAsync(); if (guard != null) return guard;
+        var dept = await _db.Departments.FirstOrDefaultAsync(d => d.Id == id);
+        if (dept is null) return NotFound(new { error = $"Department {id} not found." });
+
+        if (input.TargetPercent is >= 0 and <= 100) dept.TargetPercent = input.TargetPercent;
+        dept.SortOrder = input.SortOrder;
+        dept.IsActive = input.IsActive;
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return StatusCode(500, new { error = "Could not save department: " + ex.Message }); }
+        return Ok(dept);
+    }
+
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

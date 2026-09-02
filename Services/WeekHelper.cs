@@ -21,4 +21,12 @@ public static class WeekHelper
 
     /// <summary>Next Tuesday's week — the default for the Admin weekly severity review.</summary>
     public static DateOnly NextWeek() => ThisWeek().AddDays(7);
+
+    /// <summary>The audit weeks (Tuesdays) whose start falls between from and to inclusive.</summary>
+    public static IEnumerable<DateOnly> WeeksBetween(DateOnly from, DateOnly to)
+    {
+        var w = WeekStarting(from);
+        var end = WeekStarting(to);
+        while (w <= end) { yield return w; w = w.AddDays(7); }
+    }
 }

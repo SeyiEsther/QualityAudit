@@ -4,6 +4,25 @@ Digital replacement for the paper QA 343-34 sheet. ASP.NET Core 8 Web API with a
 single-page HTML/JS frontend. **EF Core** over the existing `RittalQualityAudit` v3
 database (no Dapper, no EF migrations) — consistent with the TL Portal.
 
+## v5 additions (consolidated spec)
+
+- **Attainment gauge** — `GET /api/dashboard/attainment?departmentId=&from=&to=` and a radial dial
+  on the dashboard: actual audited checks (OK/NOT_OK) vs expected (each week's per-item
+  `ChecksPerWeek` for the severity in force that week). Target from `Departments.TargetPercent`.
+  Period selector: this week / this month / rolling 12 months.
+- **Coverage tab** — `GET /api/coverage?departmentId=&weekStarting=`: per-item expected vs actual,
+  shortfall, and a Tuesday→Monday tick grid; under-target items first; week navigation.
+- **Shifts are 1st / 2nd / 3rd** everywhere (free text; the department's own tracker uses these).
+- **History search** — `search` param matches `Deviation` / `ActionDetail`, plus a shift filter.
+- **Admin editors added**: action types (CRUD), severity levels (`ChecksPerWeek` + `Instruction`),
+  and department `TargetPercent` — so nothing numeric is hardcoded.
+- **RAG legend** is collapsible on New Audit and shown as a strip on the Dashboard.
+
+> **Schema note:** `Departments.TargetPercent` is mapped as `decimal` (consistent with the views'
+> `DECIMAL(5,1)` percentages). If the live column is `int` and you hit a cast error on
+> `/api/departments`, it's a one-line fix — add `.HasConversion<int>()` to the `TargetPercent`
+> property mapping in `QualityAuditContext`.
+
 ## The four things v3 gets right
 
 1. **The audit week starts on TUESDAY.** `Services/WeekHelper.cs` mirrors `dbo.fn_WeekStarting`

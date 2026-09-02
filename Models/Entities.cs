@@ -13,6 +13,7 @@ public class Department
     public string Name { get; set; } = "";
     public string? FormRef { get; set; }
     public bool HasNdtCheck { get; set; }       // Sheet Metal = true, Assembly = false
+    public decimal TargetPercent { get; set; }  // attainment target (currently 98)
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
 }

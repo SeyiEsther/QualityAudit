@@ -266,8 +266,68 @@ public class OverviewMonth
     public int Total { get; set; }
     public int Pass { get; set; }
     public int Fail { get; set; }
+    public int Completed { get; set; }   // OK + NOT_OK
+    public int Expected { get; set; }    // target checks for the month
     public decimal PassRate { get; set; }
     public decimal FailRate { get; set; }
+}
+
+public class AttainmentResult
+{
+    public int DepartmentId { get; set; }
+    public DateOnly From { get; set; }
+    public DateOnly To { get; set; }
+    public int ExpectedChecks { get; set; }
+    public int ActualChecks { get; set; }
+    public decimal AttainmentPct { get; set; }
+    public decimal TargetPct { get; set; }
+}
+
+public class CoverageResponse
+{
+    public int DepartmentId { get; set; }
+    public DateOnly WeekStarting { get; set; }
+    public List<string> Days { get; set; } = new();   // 7 ISO dates, Tuesday..Monday
+    public int ItemsAtTarget { get; set; }
+    public int ItemCount { get; set; }
+    public List<CoverageItem> Items { get; set; } = new();
+}
+
+public class CoverageItem
+{
+    public int AuditItemId { get; set; }
+    public string DisplayName { get; set; } = "";
+    public string Location { get; set; } = "";
+    public int SortOrder { get; set; }
+    public byte Severity { get; set; }
+    public int Expected { get; set; }
+    public int Actual { get; set; }
+    public int Shortfall { get; set; }
+    public List<int> DayCounts { get; set; } = new();   // aligned to Days
+    public List<string> Shifts { get; set; } = new();
+    public List<string> Auditors { get; set; } = new();
+}
+
+public class DepartmentInput
+{
+    public decimal TargetPercent { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class SeverityLevelInput
+{
+    public int ChecksPerWeek { get; set; }
+    public string Instruction { get; set; } = "";
+}
+
+public class ActionTypeInput
+{
+    public int? Id { get; set; }
+    public string Code { get; set; } = "";
+    public string Label { get; set; } = "";
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
 public class SeverityReviewRow

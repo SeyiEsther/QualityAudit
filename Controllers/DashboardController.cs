@@ -86,6 +86,51 @@ public class DashboardController : ControllerBase
         return result;
     }
 
+    // GET /api/dashboard/attainment?departmentId=&from=&to=
+    // Headline figure: actual audited checks (OK/NOT_OK) against expected checks, where
+    // expected sums each week's per-item ChecksPerWeek for the severity in force that week.
+    [HttpGet("attainment")]
+    public async Task<AttainmentResult> Attainment([FromQuery] int departmentId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var f = from ?? new DateOnly(today.Year, today.Month, 1);
+        var t = to ?? today;
+        var weeks = WeekHelper.WeeksBetween(f, t).ToList();
+
+        var items = await _db.AuditItems.AsNoTracking()
+            .Where(i => i.DepartmentId == departmentId && i.IsActive).ToListAsync();
+        var itemIds = items.Select(i => i.Id).ToList();
+        var defaults = items.ToDictionary(i => i.Id, i => i.DefaultSeverity);
+        var maxWeek = weeks.Count > 0 ? weeks[^1] : WeekHelper.WeekStarting(t);
+        var assignments = await _db.SeverityAssignments.AsNoTracking()
+            .Where(a => itemIds.Contains(a.AuditItemId) && a.WeekStarting <= maxWeek).ToListAsync();
+        var byItem = SeverityMath.GroupByItem(assignments);
+        var checksPerWeek = await _db.SeverityLevels.AsNoTracking().ToDictionaryAsync(s => (int)s.Severity, s => s.ChecksPerWeek);
+
+        var expected = 0;
+        foreach (var w in weeks)
+            foreach (var item in items)
+            {
+                var sev = SeverityMath.Resolve(byItem, defaults, item.Id, w);
+                expected += checksPerWeek.TryGetValue(sev, out var c) ? c : 0;
+            }
+
+        var actual = await _db.Results.AsNoTracking().CountAsync(r =>
+            (r.Outcome == "OK" || r.Outcome == "NOT_OK")
+            && r.Submission!.IsComplete && r.Submission.DepartmentId == departmentId
+            && weeks.Contains(r.Submission.WeekStarting));
+
+        var target = await _db.Departments.Where(d => d.Id == departmentId).Select(d => d.TargetPercent).FirstOrDefaultAsync();
+
+        return new AttainmentResult
+        {
+            DepartmentId = departmentId, From = f, To = t,
+            ExpectedChecks = expected, ActualChecks = actual,
+            AttainmentPct = expected == 0 ? 0m : Math.Round(100m * actual / expected, 1),
+            TargetPct = target
+        };
+    }
+
     // GET /api/dashboard/failures?departmentId=&weekStarting=
     [HttpGet("failures")]
     public async Task<IEnumerable<VwFailure>> Failures([FromQuery] int? departmentId, [FromQuery] DateOnly? weekStarting)
@@ -152,6 +197,30 @@ public class DashboardController : ControllerBase
                 Fail = g.Count(x => x.Outcome == "NOT_OK")
             });
 
+        // Expected checks per month = sum of each week's per-item ChecksPerWeek, the week
+        // assigned to the month of its Tuesday.
+        var items = await _db.AuditItems.AsNoTracking()
+            .Where(i => i.DepartmentId == departmentId && i.IsActive).ToListAsync();
+        var itemIds = items.Select(i => i.Id).ToList();
+        var defaults = items.ToDictionary(i => i.Id, i => i.DefaultSeverity);
+        var assignments = await _db.SeverityAssignments.AsNoTracking()
+            .Where(a => itemIds.Contains(a.AuditItemId) && a.WeekStarting <= today).ToListAsync();
+        var byItem = SeverityMath.GroupByItem(assignments);
+        var checksPerWeek = await _db.SeverityLevels.AsNoTracking().ToDictionaryAsync(s => (int)s.Severity, s => s.ChecksPerWeek);
+
+        var expectedByMonth = new Dictionary<(int, int), int>();
+        foreach (var w in WeekHelper.WeeksBetween(from, today))
+        {
+            var e = 0;
+            foreach (var item in items)
+            {
+                var sev = SeverityMath.Resolve(byItem, defaults, item.Id, w);
+                e += checksPerWeek.TryGetValue(sev, out var c) ? c : 0;
+            }
+            var key = (w.Year, w.Month);
+            expectedByMonth[key] = (expectedByMonth.TryGetValue(key, out var v) ? v : 0) + e;
+        }
+
         var list = new List<OverviewMonth>();
         for (var m = from; m <= firstOfThisMonth; m = m.AddMonths(1))
         {
@@ -159,10 +228,12 @@ public class DashboardController : ControllerBase
             var pass = g?.Pass ?? 0;
             var fail = g?.Fail ?? 0;
             var total = pass + fail;
+            expectedByMonth.TryGetValue((m.Year, m.Month), out var expected);
             list.Add(new OverviewMonth
             {
                 Month = $"{m.Year:0000}-{m.Month:00}",
                 Total = total, Pass = pass, Fail = fail,
+                Completed = total, Expected = expected,
                 PassRate = Rate(pass, fail),
                 FailRate = total == 0 ? 0m : Math.Round(100m * fail / total, 1)
             });

@@ -173,13 +173,22 @@ public class SubmissionsController : ControllerBase
     [HttpGet]
     public async Task<IEnumerable<SubmissionListItem>> List(
         [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
-        [FromQuery] int? departmentId, [FromQuery] string? shift)
+        [FromQuery] int? departmentId, [FromQuery] string? shift, [FromQuery] string? search)
     {
         var (f, t) = RangeHelper.Resolve(from, to);
 
         var query = _db.Submissions.AsNoTracking().Where(s => s.AuditDate >= f && s.AuditDate <= t);
         if (departmentId is > 0) query = query.Where(s => s.DepartmentId == departmentId);
         if (!string.IsNullOrWhiteSpace(shift)) query = query.Where(s => s.Shift == shift);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            // Case-insensitive partial match over deviation / action detail (SQL Server
+            // default collation is case-insensitive, so Contains suffices).
+            query = query.Where(s => s.Results.Any(r =>
+                (r.Deviation != null && r.Deviation.Contains(term)) ||
+                (r.ActionDetail != null && r.ActionDetail.Contains(term))));
+        }
 
         return await query
             .OrderByDescending(s => s.AuditDate).ThenByDescending(s => s.Id)
