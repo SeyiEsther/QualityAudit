@@ -178,7 +178,8 @@ public class DashboardController : ControllerBase
     public async Task<IEnumerable<OverviewMonth>> Overview([FromQuery] int departmentId, [FromQuery] int months = 12)
     {
         if (months < 1) months = 12;
-        var firstOfThisMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var firstOfThisMonth = new DateOnly(today.Year, today.Month, 1);
         var from = firstOfThisMonth.AddMonths(-(months - 1));
 
         var raw = await _db.Results.AsNoTracking()
