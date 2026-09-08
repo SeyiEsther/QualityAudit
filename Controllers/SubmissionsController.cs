@@ -239,6 +239,7 @@ public class SubmissionsController : ControllerBase
                     NdtResult = r.NdtResult,
                     AreaDocsResult = r.AreaDocsResult,
                     NotAuditedReason = r.NotAuditedReason != null ? r.NotAuditedReason.Label : null,
+                    NotAuditedReasonId = r.NotAuditedReasonId,
                     PartNo = r.PartNo,
                     Deviation = r.Deviation,
                     Customer = r.Customer != null ? r.Customer.Name : null,
@@ -282,13 +283,20 @@ public class SubmissionsController : ControllerBase
             var value = r.Result!.Trim();
             if (!ValidResults.Contains(value)) { problems.Add($"Item {r.AuditItemId}: '{value}' is not a valid result."); continue; }
 
-            var anyNok = value == "NOT_OK"
-                || r.PlansResult == "NOT_OK" || r.NdtResult == "NOT_OK" || r.AreaDocsResult == "NOT_OK";
-            if (anyNok && string.IsNullOrWhiteSpace(r.Deviation))
-                problems.Add($"Item {r.AuditItemId}: a deviation is required to evidence a Not OK.");
-
-            if (value == "NOT_AUDITED" && r.NotAuditedReasonId is null or <= 0)
-                problems.Add($"Item {r.AuditItemId}: a reason is required for a Not Audited result.");
+            if (value == "NOT_AUDITED")
+            {
+                // Not Audited requires a reason and nothing else — deviation is never required
+                // for it (its sub-checks are cleared on save, see ApplyResult).
+                if (r.NotAuditedReasonId is null or <= 0)
+                    problems.Add($"Item {r.AuditItemId}: a reason is required for a Not Audited result.");
+            }
+            else
+            {
+                var anyNok = value == "NOT_OK"
+                    || r.PlansResult == "NOT_OK" || r.NdtResult == "NOT_OK" || r.AreaDocsResult == "NOT_OK";
+                if (anyNok && string.IsNullOrWhiteSpace(r.Deviation))
+                    problems.Add($"Item {r.AuditItemId}: a deviation is required to evidence a Not OK.");
+            }
         }
         return problems;
     }
@@ -319,24 +327,29 @@ public class SubmissionsController : ControllerBase
     private static void ApplyResult(Result target, ResultInput r, Func<int, byte> severity)
     {
         var value = r.Result!.Trim();
+        var notAudited = value == "NOT_AUDITED";
         target.SeverityAtAudit = severity(r.AuditItemId);
         target.Outcome = value;
-        target.PlansResult = NullIfBlank(r.PlansResult);
-        target.NdtResult = NullIfBlank(r.NdtResult);
-        target.AreaDocsResult = NullIfBlank(r.AreaDocsResult);
-        target.NotAuditedReasonId = value == "NOT_AUDITED" ? r.NotAuditedReasonId : null;
-        target.PartNo = NullIfBlank(r.PartNo);
-        target.Deviation = NullIfBlank(r.Deviation);
-        target.CustomerId = r.CustomerId is > 0 ? r.CustomerId : null;
-        target.ActionTypeId = r.ActionTypeId is > 0 ? r.ActionTypeId : null;
-        target.ActionDetail = NullIfBlank(r.ActionDetail);
+        // A Not Audited row carries only its reason. Null everything else so it can never trip
+        // the deviation CHECK constraint, and to match the form (nothing else is filled in).
+        target.PlansResult = notAudited ? null : NullIfBlank(r.PlansResult);
+        target.NdtResult = notAudited ? null : NullIfBlank(r.NdtResult);
+        target.AreaDocsResult = notAudited ? null : NullIfBlank(r.AreaDocsResult);
+        target.NotAuditedReasonId = notAudited ? r.NotAuditedReasonId : null;
+        target.PartNo = notAudited ? null : NullIfBlank(r.PartNo);
+        target.Deviation = notAudited ? null : NullIfBlank(r.Deviation);
+        target.CustomerId = notAudited ? null : (r.CustomerId is > 0 ? r.CustomerId : null);
+        target.ActionTypeId = notAudited ? null : (r.ActionTypeId is > 0 ? r.ActionTypeId : null);
+        target.ActionDetail = notAudited ? null : NullIfBlank(r.ActionDetail);
     }
 
     private static List<ResultCheckPoint> BuildCheckPoints(ResultInput r) =>
-        r.CheckPoints
-            .Where(cp => !string.IsNullOrWhiteSpace(cp.Answer) && ValidResults.Contains(cp.Answer!.Trim()))
-            .Select(cp => new ResultCheckPoint { CheckPointId = cp.CheckPointId, Answer = cp.Answer!.Trim() })
-            .ToList();
+        r.Result!.Trim() == "NOT_AUDITED"
+            ? new List<ResultCheckPoint>()   // a Not Audited row records no check-point answers
+            : r.CheckPoints
+                .Where(cp => !string.IsNullOrWhiteSpace(cp.Answer) && ValidResults.Contains(cp.Answer!.Trim()))
+                .Select(cp => new ResultCheckPoint { CheckPointId = cp.CheckPointId, Answer = cp.Answer!.Trim() })
+                .ToList();
 
     private static SaveResult BuildSaveResult(Submission s) => new()
     {

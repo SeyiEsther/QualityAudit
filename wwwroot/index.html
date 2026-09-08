@@ -81,6 +81,10 @@ body.tv .gauge-pct{font-size:52px}
 .cov-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
 
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 10px;flex-wrap:wrap}
+.tb-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bulk-na{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:4px 4px 4px 6px;background:#fbfcfe}
+.bulk-na select{font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;max-width:200px}
+.bulk-na .ghost{padding:6px 10px;font-size:12.5px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .chip{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;cursor:pointer}
 .chip.on{background:var(--steel);color:#fff;border-color:var(--steel)}
@@ -303,9 +307,12 @@ body.tv .pane{max-width:1600px}
         <button class="chip on" data-loc="all">All areas</button>
         <button class="chip" data-loc="Ph1">Ph1</button><button class="chip" data-loc="Ph3">Ph3</button>
         <span class="chip-div"></span>
-        <button class="chip on" data-flag="all">Everything</button><button class="chip" data-flag="todo">Not checked</button><button class="chip" data-flag="nok">Failures</button>
+        <button class="chip on" data-flag="all">Everything</button><button class="chip" data-flag="todo">Not checked</button><button class="chip" data-flag="nok">Failures</button><button class="chip" data-flag="na">Not audited</button>
       </div>
-      <button class="ghost" onclick="markShownOK()">Mark shown OK</button>
+      <div class="tb-actions">
+        <span class="bulk-na"><select id="bulk-reason"></select><button class="ghost" onclick="setReasonForAllNa()">Set reason for all Not Audited</button></span>
+        <button class="ghost" onclick="markShownOK()">Mark shown OK</button>
+      </div>
     </div>
 
     <section class="rows" id="rows"></section>
@@ -486,7 +493,7 @@ async function loadForm(deptId, keepRows){
     if(!FORM.department.hasNdtCheck && !val('h-arealine')) setVal('h-arealine','All');
     populateUserPickers();
     document.getElementById('total-count').textContent=MACHINES.length;
-    renderLegend(); renderRows(); updateProgress();
+    renderLegend(); populateBulkReason(); renderRows(); updateProgress();
     document.getElementById('dept-choose').classList.add('hidden');
     document.getElementById('entry-main').classList.remove('hidden');
     document.getElementById('footbar').classList.remove('hidden');
@@ -507,6 +514,7 @@ function visibleMachines(){
     const r=rows[m.id];
     if(filter.flag==='todo'&&isAudited(r)) return false;
     if(filter.flag==='nok'&&!anyNok(r)) return false;
+    if(filter.flag==='na'&&r.result!=='NOT_AUDITED') return false;
     return true;
   });
 }
@@ -526,6 +534,13 @@ function machineRowHtml(m,r){
 }
 function fieldInput(id,key,label,value,cls){ return '<label class="field"><span>'+esc(label)+'</span><input class="'+(cls||'')+'" value="'+esc(value)+'" oninput="setField('+id+',\''+key+'\',this.value)"></label>'; }
 function rowDetailHtml(m,r,lv){
+  // Not Audited: the auditor didn't fill anything out — show ONLY the reason dropdown.
+  if(r.result==='NOT_AUDITED'){
+    return '<div class="row-detail"><label class="field"><span>Reason not audited <span class="req-flag">required</span></span>'+
+      '<select onchange="setField('+m.id+',\'notAuditedReasonId\',this.value)"><option value="">— select —</option>'+
+      FORM.notAuditedReasons.map(x=>'<option value="'+x.id+'"'+(String(r.notAuditedReasonId)===String(x.id)?' selected':'')+'>'+esc(x.label)+'</option>').join('')+
+      '</select></label></div>';
+  }
   const needDev=anyNok(r);
   // sub-checks (NDT only when the department has it)
   const subs=['<div class="subfield"><span>Plans in place &amp; used</span>'+segHtml('plans',m.id,r.plans,'sm')+'</div>'];
@@ -535,15 +550,13 @@ function rowDetailHtml(m,r,lv){
   const cps=CHECKPOINTS.filter(c=>c.minSeverity<=m.severity);
   const cpHtml = cps.length ? '<div class="cp-list"><div class="ins-note">'+esc(lv.instruction)+'</div>'+cps.map(c=>
     '<div class="cp-row"><div class="cp-lbl">'+esc(c.label)+(c.conditional?'<em>(if applicable)</em>':'')+'</div>'+segHtml('cp:'+c.id,m.id,r.checkPoints[c.id]||'','sm')+'</div>').join('')+'</div>' : '';
-  // failure fields
-  const reasonSel = r.result==='NOT_AUDITED' ? '<label class="field"><span>Reason not audited <span class="req-flag">required</span></span><select onchange="setField('+m.id+',\'notAuditedReasonId\',this.value)"><option value="">— select —</option>'+FORM.notAuditedReasons.map(x=>'<option value="'+x.id+'"'+(String(r.notAuditedReasonId)===String(x.id)?' selected':'')+'>'+esc(x.label)+'</option>').join('')+'</select></label>' : '';
   const custSel='<label class="field"><span>Customer</span><select onchange="setField('+m.id+',\'customerId\',this.value)"><option value="">—</option>'+FORM.customers.map(c=>'<option value="'+c.id+'"'+(String(r.customerId)===String(c.id)?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>';
   const actSel='<label class="field"><span>Action taken'+(r.result==='NOT_OK'?' <span class="req-flag">recommended</span>':'')+'</span><select onchange="setField('+m.id+',\'actionTypeId\',this.value)"><option value="">—</option>'+FORM.actionTypes.map(a=>'<option value="'+a.id+'"'+(String(r.actionTypeId)===String(a.id)?' selected':'')+'>'+esc(a.label)+'</option>').join('')+'</select></label>';
   const dev='<label class="field"><span>Deviation from standard'+(needDev?' <span class="req-flag">required</span>':'')+'</span><textarea rows="2" oninput="setField('+m.id+',\'deviation\',this.value)">'+esc(r.deviation)+'</textarea></label>';
   return '<div class="row-detail">'+
     '<div class="detail-grid">'+fieldInput(m.id,'partNo','Drawing / Part No.',r.partNo,'mono')+custSel+actSel+'</div>'+
     '<div class="sub-checks">'+subs.join('')+'</div>'+cpHtml+
-    reasonSel+dev+
+    dev+
     '<label class="field"><span>Action detail (e.g. 4-D reference)</span><input value="'+esc(r.actionDetail)+'" oninput="setField('+m.id+',\'actionDetail\',this.value)"></label>'+
     photosHtml(m.id,r)+'</div>';
 }
@@ -560,12 +573,27 @@ function renderRows(){
 function setSeg(kind,id,v){
   const r=rows[id];
   if(kind.startsWith('cp:')){ const cid=kind.slice(3); r.checkPoints[cid]=(r.checkPoints[cid]===v)?'':v; }
-  else { r[kind]=(r[kind]===v)?'':v; }
+  else {
+    r[kind]=(r[kind]===v)?'':v;
+    if(kind==='result' && r.result==='NOT_AUDITED'){
+      // Not Audited carries only its reason — clear everything else so a stale sub-check
+      // can't demand a (now hidden) deviation, and so the DB check constraints stay happy.
+      r.plans=''; r.ndt=''; r.areaDocs=''; r.deviation=''; r.partNo=''; r.customerId=''; r.actionTypeId=''; r.actionDetail=''; r.checkPoints={};
+    }
+  }
   renderRows(); updateProgress(); scheduleDraftSave();
 }
 function setField(id,key,v){ rows[id][key]=v; scheduleDraftSave(); }
 function toggleExpand(id){ expanded=(expanded===id)?null:id; renderRows(); }
 function markShownOK(){ visibleMachines().forEach(m=>{ if(!isAudited(rows[m.id])) rows[m.id].result='OK'; }); renderRows(); updateProgress(); scheduleDraftSave(); }
+function populateBulkReason(){ const sel=document.getElementById('bulk-reason'); if(!sel||!FORM) return; sel.innerHTML='<option value="">Reason for all Not Audited…</option>'+FORM.notAuditedReasons.map(x=>'<option value="'+x.id+'">'+esc(x.label)+'</option>').join(''); }
+function setReasonForAllNa(){
+  const rid=val('bulk-reason'); if(!rid){ toast('Pick a reason first',true); return; }
+  let n=0; MACHINES.forEach(m=>{ if(rows[m.id].result==='NOT_AUDITED'){ rows[m.id].notAuditedReasonId=rid; n++; } });
+  if(!n){ toast('No rows are marked Not Audited',true); return; }
+  renderRows(); updateProgress(); scheduleDraftSave(); clearInlineError();
+  toast('Reason set on '+n+' Not Audited row'+(n>1?'s':''));
+}
 function updateProgress(){
   const total=MACHINES.length||1;
   const checked=MACHINES.filter(m=>isAudited(rows[m.id])).length;
@@ -578,29 +606,40 @@ function updateProgress(){
 function resetEntry(){ MACHINES.forEach(m=>rows[m.id]=emptyRow()); expanded=null; submissionId=null; setVal('h-other',''); clearInlineError(); discardDraftKey(); renderRows(); updateProgress(); }
 function getHeader(){ return { date:val('h-date'), shift:val('h-shift'), auditor:val('h-auditor'), areaLine:val('h-arealine') }; }
 
+function rowNumList(ids){
+  const nums=ids.map(id=>(machineById(id)||{}).sortOrder||'?').sort((a,b)=>a-b);
+  return nums.length<=12 ? ('rows '+nums.join(', ')) : ('rows '+nums.slice(0,12).join(', ')+' +'+(nums.length-12)+' more');
+}
 function validateRows(){
-  const bad=[];
+  // Deviation is required ONLY for Not OK (main result or any sub-check). Never for
+  // Not Audited — which requires a reason instead. This matches the DB CHECK constraints.
+  const devBad=[], reasonBad=[];
   MACHINES.forEach(m=>{ const r=rows[m.id]; if(!isAudited(r)) return;
-    if(anyNok(r) && !(''+r.deviation).trim()) bad.push(m.id);
-    if(r.result==='NOT_AUDITED' && !r.notAuditedReasonId) bad.push(m.id);
+    if(r.result==='NOT_AUDITED'){ if(!r.notAuditedReasonId) reasonBad.push(m.id); }
+    else if(anyNok(r) && !(''+r.deviation).trim()){ devBad.push(m.id); }
   });
-  return [...new Set(bad)];
+  return { devBad, reasonBad, all:[...new Set([...devBad,...reasonBad])] };
 }
 function buildResults(){
-  return MACHINES.filter(m=>isAudited(rows[m.id])).map(m=>{ const r=rows[m.id];
-    return { auditItemId:m.id, result:r.result, plansResult:r.plans||null, ndtResult:(FORM.department.hasNdtCheck?(r.ndt||null):null), areaDocsResult:r.areaDocs||null,
-      notAuditedReasonId:r.result==='NOT_AUDITED'?(+r.notAuditedReasonId||null):null, partNo:r.partNo||null, deviation:r.deviation||null,
-      customerId:+r.customerId||null, actionTypeId:+r.actionTypeId||null, actionDetail:r.actionDetail||null,
-      checkPoints:Object.entries(r.checkPoints||{}).filter(([k,v])=>v).map(([k,v])=>({checkPointId:+k,answer:v})) };
+  return MACHINES.filter(m=>isAudited(rows[m.id])).map(m=>{ const r=rows[m.id]; const na=r.result==='NOT_AUDITED';
+    return { auditItemId:m.id, result:r.result,
+      plansResult:na?null:(r.plans||null), ndtResult:na?null:(FORM.department.hasNdtCheck?(r.ndt||null):null), areaDocsResult:na?null:(r.areaDocs||null),
+      notAuditedReasonId:na?(+r.notAuditedReasonId||null):null, partNo:na?null:(r.partNo||null), deviation:na?null:(r.deviation||null),
+      customerId:na?null:(+r.customerId||null), actionTypeId:na?null:(+r.actionTypeId||null), actionDetail:na?null:(r.actionDetail||null),
+      checkPoints:na?[]:Object.entries(r.checkPoints||{}).filter(([k,v])=>v).map(([k,v])=>({checkPointId:+k,answer:v})) };
   });
 }
 async function saveAudit(complete){
   clearInlineError();
   document.querySelectorAll('.row.invalid').forEach(el=>el.classList.remove('invalid'));
-  const bad=validateRows();
-  if(bad.length){ bad.forEach(id=>{const el=document.getElementById('row-'+id); if(el)el.classList.add('invalid');});
-    if(expanded===null){ expanded=bad[0]; renderRows(); bad.forEach(id=>{const el=document.getElementById('row-'+id); if(el)el.classList.add('invalid');}); }
-    showInlineError(bad.length+' row(s) need a deviation (for a Not OK) or a reason (for Not Audited).'); return; }
+  const v=validateRows();
+  if(v.all.length){
+    v.all.forEach(id=>{const el=document.getElementById('row-'+id); if(el)el.classList.add('invalid');});
+    if(expanded===null){ expanded=v.all[0]; renderRows(); v.all.forEach(id=>{const el=document.getElementById('row-'+id); if(el)el.classList.add('invalid');}); }
+    const parts=[];
+    if(v.devBad.length) parts.push(v.devBad.length+' row'+(v.devBad.length>1?'s':'')+' marked Not OK need a deviation ('+rowNumList(v.devBad)+')');
+    if(v.reasonBad.length) parts.push(v.reasonBad.length+' row'+(v.reasonBad.length>1?'s':'')+' marked Not Audited need a reason — use “Set reason for all Not Audited” above to fill them in one go ('+rowNumList(v.reasonBad)+')');
+    showInlineError(parts.join('. ')+'.'); return; }
   const h=getHeader();
   if(!h.auditor){ showInlineError('Choose the auditor first — nothing was saved.'); return; }
   const results=buildResults();
@@ -693,7 +732,7 @@ function loadDetailIntoForm(d){
   MACHINES.forEach(m=>rows[m.id]=emptyRow());
   d.results.forEach(rr=>{ const r=rows[rr.auditItemId]; if(!r) return;
     r.result=rr.result||''; r.plans=rr.plansResult||''; r.ndt=rr.ndtResult||''; r.areaDocs=rr.areaDocsResult||'';
-    r.notAuditedReasonId=''; r.partNo=rr.partNo||''; r.deviation=rr.deviation||''; r.customerId=rr.customerId||''; r.actionTypeId=rr.actionTypeId||''; r.actionDetail=rr.actionDetail||'';
+    r.notAuditedReasonId=rr.notAuditedReasonId||''; r.partNo=rr.partNo||''; r.deviation=rr.deviation||''; r.customerId=rr.customerId||''; r.actionTypeId=rr.actionTypeId||''; r.actionDetail=rr.actionDetail||'';
     r.resultId=rr.resultId; r.attachments=rr.attachments||[]; r.checkPoints={}; (rr.checkPoints||[]).forEach(cp=>{ r.checkPoints[cp.checkPointId]=cp.answer; });
   });
   renderRows(); updateProgress();

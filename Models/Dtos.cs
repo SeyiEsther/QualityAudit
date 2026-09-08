@@ -168,6 +168,7 @@ public class DetailResult
     public string? NdtResult { get; set; }
     public string? AreaDocsResult { get; set; }
     public string? NotAuditedReason { get; set; }
+    public int? NotAuditedReasonId { get; set; }
     public string? PartNo { get; set; }
     public string? Deviation { get; set; }
     public string? Customer { get; set; }
