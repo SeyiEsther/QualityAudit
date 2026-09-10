@@ -3,9 +3,6 @@
 A short guide to using the Quality Audit app (the digital QA 343-34 form). It works
 on a laptop in the office and on an iPad on the shop floor.
 
-> Screenshots: drop images into `docs/images/` and replace the *(screenshot: …)*
-> lines below.
-
 ## Opening the app
 
 Go to the app address in a browser (for example `http://csm-srv-16:5109`). No login
@@ -19,8 +16,6 @@ Along the top there are five tabs: **New Audit**, **Dashboard**, **Coverage**,
 ## New Audit
 
 This is where you record a shift audit.
-
-*(screenshot: the New Audit machine list)*
 
 1. **Pick the area** – Sheet Metal or Assembly.
 2. **Fill in the header** – Date, Shift (1st / 2nd / 3rd), Auditor (pick your name),
@@ -48,8 +43,6 @@ OK in one go, then go back and change the few that need attention.
 
 ### Adding detail (tap the + on a row)
 
-*(screenshot: an expanded row with sub-checks and photo)*
-
 - **Drawing / Part No.**, **Customer**, **Action taken** and a free-text detail box.
 - **Sub-checks**: Plans in place & used, Destructive / NDT (Sheet Metal only), Area
   docs up to date.
@@ -74,8 +67,6 @@ Use the chips to narrow the list: by severity, by area (Ph1 / Ph3), **Not checke
 
 ### Saving
 
-*(screenshot: the confirmation screen)*
-
 - **Save draft** – keeps an unfinished audit you can come back to later in the shift.
 - **Save & submit** – finishes the audit. You get a confirmation screen with the
   date, shift, auditor, how many were checked and the fail count.
@@ -87,8 +78,6 @@ shift, it offers to **resume** it.
 ---
 
 ## Dashboard
-
-*(screenshot: the dashboard with the attainment gauge)*
 
 Pick a **department** and a **week**, and an **attainment period** (this week, this
 month, or rolling 12 months).
@@ -110,8 +99,6 @@ month, or rolling 12 months).
 
 ## Coverage
 
-*(screenshot: the coverage grid)*
-
 A grid of every machine down the side and the days of the audit week (Tuesday to
 Monday) across the top. A tick/count shows where a check was done. Machines that are
 **under target are listed first**. Use **Prev week / Next week** to move between weeks.
@@ -119,8 +106,6 @@ Monday) across the top. A tick/count shows where a check was done. Machines that
 ---
 
 ## History
-
-*(screenshot: the history list)*
 
 A list of past audits. Filter by department, shift and date range, or **search** the
 deviation and action text (e.g. "torque", "4-D"). Click a row to open a read-only copy
