@@ -15,7 +15,7 @@ USE RittalQualityAudit;
 GO
 
 UPDATE dbo.SeverityLevels
-SET ColourHex = '#EAB308'          -- bright yellow, clearly distinct from red
+SET ColourHex = '#FF8200'          -- bright Fanta-style yellow-orange, clearly distinct from red
 WHERE Severity = 2;
 GO
 

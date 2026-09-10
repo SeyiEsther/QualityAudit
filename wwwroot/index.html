@@ -400,7 +400,7 @@ const RESULTS = [
 ];
 // Fallback only — real severity colours come from SeverityLevels.ColourHex in the DB.
 // Amber kept in sync with the DB's new yellow so there's no mismatched flash before load.
-const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#eab308'}, 3:{name:'Red',hex:'#b91c1c'} };
+const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#ff8200'}, 3:{name:'Red',hex:'#b91c1c'} };
 const todayISO = () => new Date().toISOString().slice(0,10);
 const daysAgoISO = n => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -523,7 +523,7 @@ function visibleMachines(){
 function segHtml(kind,id,value,size){
   return '<div class="seg seg-'+size+'">'+RESULTS.map(([v,lbl,hex,tip])=>'<button type="button" class="seg-btn'+(value===v?' on':'')+'" title="'+esc(tip)+'" style="'+(value===v?('background:'+hex):'')+'" onclick="setSeg(\''+kind+'\','+id+',\''+v+'\')">'+lbl+'</button>').join('')+'</div>';
 }
-function textOn(hex){ if(!hex||hex.length<7) return '#fff'; const h=hex.replace('#',''); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16); return (0.2126*r+0.7152*g+0.0722*b)/255>0.6?'#1a1a1a':'#fff'; }
+function textOn(hex){ if(!hex||hex.length<7) return '#fff'; const h=hex.replace('#',''); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16); return (0.2126*r+0.7152*g+0.0722*b)/255>0.5?'#1a1a1a':'#fff'; }
 function naReasonId(code){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>r.code===code); return x?x.id:null; }
 function naReasonLabel(id){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>String(r.id)===String(id)); return x?x.label:'Not Audited'; }
 // Four-button result bank: OK | Not OK | No Time | Not Running. The last two both store
