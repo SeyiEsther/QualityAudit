@@ -398,7 +398,9 @@ const RESULTS = [
   ['NOT_OK','Not OK','#b91c1c','Not acceptable. Product/process has deviations from standard.'],
   ['NOT_AUDITED','Not Audited','#64748b','Not audited. A reason is required.']
 ];
-const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#b45309'}, 3:{name:'Red',hex:'#b91c1c'} };
+// Fallback only — real severity colours come from SeverityLevels.ColourHex in the DB.
+// Amber kept in sync with the DB's new yellow so there's no mismatched flash before load.
+const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#eab308'}, 3:{name:'Red',hex:'#b91c1c'} };
 const todayISO = () => new Date().toISOString().slice(0,10);
 const daysAgoISO = n => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -521,16 +523,34 @@ function visibleMachines(){
 function segHtml(kind,id,value,size){
   return '<div class="seg seg-'+size+'">'+RESULTS.map(([v,lbl,hex,tip])=>'<button type="button" class="seg-btn'+(value===v?' on':'')+'" title="'+esc(tip)+'" style="'+(value===v?('background:'+hex):'')+'" onclick="setSeg(\''+kind+'\','+id+',\''+v+'\')">'+lbl+'</button>').join('')+'</div>';
 }
+function textOn(hex){ if(!hex||hex.length<7) return '#fff'; const h=hex.replace('#',''); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16); return (0.2126*r+0.7152*g+0.0722*b)/255>0.6?'#1a1a1a':'#fff'; }
+function naReasonId(code){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>r.code===code); return x?x.id:null; }
+function naReasonLabel(id){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>String(r.id)===String(id)); return x?x.label:'Not Audited'; }
+// Four-button result bank: OK | Not OK | No Time | Not Running. The last two both store
+// Result = NOT_AUDITED with the matching reason id (looked up from the DB at runtime).
+function resultBankHtml(m,r){
+  const noTime=naReasonId('NO_TIME'), notRun=naReasonId('NOT_RUNNING'), isNa=r.result==='NOT_AUDITED';
+  const btns=[
+    ['Not OK', r.result==='NOT_OK', '#b91c1c', "setResult("+m.id+",'NOT_OK')", 'Not acceptable. Product/process has deviations from standard.'],
+    ['OK', r.result==='OK', '#15803d', "setResult("+m.id+",'OK')", 'Acceptable. Meets and conforms to standard. No non-conformity found.'],
+    ['No Time', isNa && String(r.notAuditedReasonId)===String(noTime) && noTime!=null, '#64748b', "setNaResult("+m.id+",'NO_TIME')", 'Not audited — no time this shift.'],
+    ['Not Running', isNa && String(r.notAuditedReasonId)===String(notRun) && notRun!=null, '#64748b', "setNaResult("+m.id+",'NOT_RUNNING')", 'Not audited — machine not running.']
+  ];
+  // OK first for touch ergonomics? keep spec order: OK | Not OK | No Time | Not Running.
+  const order=[btns[1],btns[0],btns[2],btns[3]];
+  return '<div class="seg seg-md result-bank">'+order.map(([lbl,on,hex,fn,tip])=>'<button type="button" class="seg-btn'+(on?' on':'')+'" title="'+esc(tip)+'" style="'+(on?('background:'+hex+';color:'+textOn(hex)):'')+'" onclick="'+fn+'">'+lbl+'</button>').join('')+'</div>';
+}
 function machineRowHtml(m,r){
   const lv=sevInfo(m.severity), open=expanded===m.id, state=rowState(r);
-  const pill='<span class="pill" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+(lv.frequencyLabel?(' — '+esc(lv.frequencyLabel)):'')+'</span>';
+  const pill='<span class="pill" style="background:'+esc(lv.colourHex)+';color:'+textOn(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+(lv.frequencyLabel?(' — '+esc(lv.frequencyLabel)):'')+'</span>';
+  const naPill=r.result==='NOT_AUDITED'?'<span class="pill grey">'+esc(naReasonLabel(r.notAuditedReasonId))+'</span>':'';
   let tail='';
   if(open) tail=rowDetailHtml(m,r,lv);
   return '<div class="row state-'+state+'" id="row-'+m.id+'"><div class="spine" style="background:'+esc(lv.colourHex)+'"></div>'+
     '<div class="row-main"><div class="row-id">'+(m.sortOrder||'')+'</div>'+
     '<div class="row-name"><div class="nm">'+esc(m.displayName)+(m.specialMeasures?'<span class="xx">XX</span>':'')+(m.isFallback?'<span class="tag">default</span>':'')+'</div>'+
-    '<div class="meta">'+pill+'<span class="pill grey">'+esc(m.location)+'</span></div></div>'+
-    segHtml('result',m.id,r.result,'md')+'<button class="disc'+(open?' on':'')+'" onclick="toggleExpand('+m.id+')">'+(open?'&ndash;':'+')+'</button></div>'+tail+'</div>';
+    '<div class="meta">'+pill+'<span class="pill grey">'+esc(m.location)+'</span>'+naPill+'</div></div>'+
+    resultBankHtml(m,r)+'<button class="disc'+(open?' on':'')+'" onclick="toggleExpand('+m.id+')">'+(open?'&ndash;':'+')+'</button></div>'+tail+'</div>';
 }
 function fieldInput(id,key,label,value,cls){ return '<label class="field"><span>'+esc(label)+'</span><input class="'+(cls||'')+'" value="'+esc(value)+'" oninput="setField('+id+',\''+key+'\',this.value)"></label>'; }
 function rowDetailHtml(m,r,lv){
@@ -585,7 +605,32 @@ function setSeg(kind,id,v){
 }
 function setField(id,key,v){ rows[id][key]=v; scheduleDraftSave(); }
 function toggleExpand(id){ expanded=(expanded===id)?null:id; renderRows(); }
-function markShownOK(){ visibleMachines().forEach(m=>{ if(!isAudited(rows[m.id])) rows[m.id].result='OK'; }); renderRows(); updateProgress(); scheduleDraftSave(); }
+// Clicking OK fills in every sub-check (and every applicable check-point) as OK so the data
+// is searchable later. Not done for Not OK / No Time / Not Running. The user can override.
+function autofillOk(id){
+  const r=rows[id], m=machineById(id); if(!m) return;
+  r.plans='OK'; r.ndt=FORM.department.hasNdtCheck?'OK':''; r.areaDocs='OK';
+  CHECKPOINTS.filter(c=>c.minSeverity<=m.severity).forEach(c=>{ r.checkPoints[c.id]='OK'; });
+}
+function setResult(id,value){
+  const r=rows[id];
+  if(r.result===value){ r.result=''; r.notAuditedReasonId=''; renderRows(); updateProgress(); scheduleDraftSave(); return; }
+  r.result=value; r.notAuditedReasonId='';
+  if(value==='OK') autofillOk(id);
+  renderRows(); updateProgress(); scheduleDraftSave();
+}
+function setNaResult(id,code){
+  const r=rows[id], rid=naReasonId(code);
+  if(r.result==='NOT_AUDITED' && String(r.notAuditedReasonId)===String(rid) && rid!=null){
+    r.result=''; r.notAuditedReasonId=''; renderRows(); updateProgress(); scheduleDraftSave(); return;
+  }
+  r.result='NOT_AUDITED'; r.notAuditedReasonId=(rid!=null?String(rid):'');
+  // Not Audited carries only its reason — clear everything else.
+  r.plans=''; r.ndt=''; r.areaDocs=''; r.deviation=''; r.partNo=''; r.customerId=''; r.actionTypeId=''; r.actionDetail=''; r.checkPoints={};
+  if(rid==null) toast('Reason “'+code+'” is not set up in the database — pick a reason in the row',true);
+  renderRows(); updateProgress(); scheduleDraftSave();
+}
+function markShownOK(){ visibleMachines().forEach(m=>{ if(!isAudited(rows[m.id])){ rows[m.id].result='OK'; autofillOk(m.id); } }); renderRows(); updateProgress(); scheduleDraftSave(); }
 function populateBulkReason(){ const sel=document.getElementById('bulk-reason'); if(!sel||!FORM) return; sel.innerHTML='<option value="">Reason for all Not Audited…</option>'+FORM.notAuditedReasons.map(x=>'<option value="'+x.id+'">'+esc(x.label)+'</option>').join(''); }
 function setReasonForAllNa(){
   const rid=val('bulk-reason'); if(!rid){ toast('Pick a reason first',true); return; }
@@ -809,7 +854,7 @@ function renderFailBoard(){
   host.innerHTML='<div class="fail-list">'+list.map(f=>{ const lv=sevInfo(f.severity);
     const subs=[ f.plansResult==='NOT_OK'?'<span class="tag warn">Plans</span>':'', f.ndtResult==='NOT_OK'?'<span class="tag warn">NDT</span>':'', f.areaDocsResult==='NOT_OK'?'<span class="tag warn">Docs</span>':'' ].join('');
     const photo=f.attachmentCount>0?'<span class="fail-thumbs" id="ft-'+f.resultId+'"></span>':'';
-    return '<div class="fail"><div class="sev-tag" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</div><div class="fail-body"><div class="fail-top"><span class="fail-name">'+esc(f.machineName)+'</span><span class="fail-when">'+esc(f.auditDate)+' · '+esc(f.shift)+'</span></div>'+
+    return '<div class="fail"><div class="sev-tag" style="background:'+esc(lv.colourHex)+';color:'+textOn(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</div><div class="fail-body"><div class="fail-top"><span class="fail-name">'+esc(f.machineName)+'</span><span class="fail-when">'+esc(f.auditDate)+' · '+esc(f.shift)+'</span></div>'+
       '<div class="fail-dev">'+esc(f.deviation||'(no deviation noted)')+'</div><div class="fail-tags">'+esc(f.location)+(f.partNo?' <span class="mono tag">'+esc(f.partNo)+'</span>':'')+(f.customer?'<span class="tag">'+esc(f.customer)+'</span>':'')+(f.actionTaken?'<span class="tag act">'+esc(f.actionTaken)+'</span>':'')+subs+photo+'</div></div></div>'; }).join('')+'</div>';
   loadFailThumbs(list);
 }
@@ -888,7 +933,7 @@ async function openSubmission(id){
       const photos=(rr.attachments||[]).map(a=>'<img class="thumb" src="/api/attachments/'+a.id+'">').join('');
       const dev=rr.deviation?'<div class="fail-dev">'+esc(rr.deviation)+'</div>':'';
       const detail=(tags||dev||photos)?'<div class="ro-detail">'+dev+(tags?'<div class="ro-tags">'+tags+'</div>':'')+(photos?'<div class="photos">'+photos+'</div>':'')+'</div>':'';
-      return '<div class="row state-'+(rr.result==='NOT_OK'?'nok':'ok')+'"><div class="spine" style="background:'+esc(lv.colourHex)+'"></div><div class="row-main"><div class="row-name"><div class="nm">'+esc(rr.machineName)+'</div><div class="meta"><span class="pill" style="background:'+esc(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</span><span class="pill grey">'+esc(rr.location)+'</span></div></div>'+resultBadge(rr.result)+'</div>'+detail+'</div>'; }).join('');
+      return '<div class="row state-'+(rr.result==='NOT_OK'?'nok':'ok')+'"><div class="spine" style="background:'+esc(lv.colourHex)+'"></div><div class="row-main"><div class="row-name"><div class="nm">'+esc(rr.machineName)+'</div><div class="meta"><span class="pill" style="background:'+esc(lv.colourHex)+';color:'+textOn(lv.colourHex)+'">'+esc((lv.name||'').toUpperCase())+'</span><span class="pill grey">'+esc(rr.location)+'</span></div></div>'+resultBadge(rr.result)+'</div>'+detail+'</div>'; }).join('');
     const notes=d.otherNotes?'<section class="card other-card"><div class="field"><span>Other daily issues &amp; tasks</span><div class="readonly-val">'+esc(d.otherNotes)+'</div></div></section>':'';
     host.innerHTML='<button class="back-link" onclick="showView(\'history\')">&larr; Back to history</button><div class="detail-head"><h2>'+esc(d.auditDate)+' · '+esc(d.shift)+'</h2><div class="muted">'+esc(d.departmentName)+' · '+esc(d.auditor)+(d.areaLine?' · '+esc(d.areaLine):'')+' · week of '+esc(d.weekStarting)+'</div><div style="margin-left:auto">'+(d.isComplete?'':'<span class="badge-draft">DRAFT</span> ')+(fails?'<span class="c-pill bad">'+fails+' fail'+(fails>1?'s':'')+'</span>':'<span class="c-pill ok">No failures</span>')+'</div></div><section class="rows">'+rowsHtml+'</section>'+notes;
   }catch(e){ host.innerHTML='<button class="back-link" onclick="showView(\'history\')">&larr; Back</button><div class="clean">Could not load audit #'+id+'.<br>'+esc(e.message)+'</div>'; }
@@ -1037,7 +1082,7 @@ let SL_LIST=[];
 async function loadSeverityLevels(){
   const host=document.getElementById('adm-sl-body'); host.innerHTML='<div class="clean">Loading…</div>';
   try{ SL_LIST=await adminApi('/api/admin/severity-levels');
-    host.innerHTML=SL_LIST.map(l=>'<div class="adm-grid" style="grid-template-columns:auto 90px 1fr auto" id="sl-'+l.severity+'"><span class="pill" style="background:'+esc(l.colourHex)+'">'+esc(l.name.toUpperCase())+'</span><input type="number" min="1" value="'+l.checksPerWeek+'" onchange="slEdit('+l.severity+',\'checksPerWeek\',this.value)" title="Checks per week"><input value="'+esc(l.instruction)+'" onchange="slEdit('+l.severity+',\'instruction\',this.value)"><button class="sm-btn" onclick="saveSeverityLevel('+l.severity+')">Save</button></div>').join('');
+    host.innerHTML=SL_LIST.map(l=>'<div class="adm-grid" style="grid-template-columns:auto 90px 1fr auto" id="sl-'+l.severity+'"><span class="pill" style="background:'+esc(l.colourHex)+';color:'+textOn(l.colourHex)+'">'+esc(l.name.toUpperCase())+'</span><input type="number" min="1" value="'+l.checksPerWeek+'" onchange="slEdit('+l.severity+',\'checksPerWeek\',this.value)" title="Checks per week"><input value="'+esc(l.instruction)+'" onchange="slEdit('+l.severity+',\'instruction\',this.value)"><button class="sm-btn" onclick="saveSeverityLevel('+l.severity+')">Save</button></div>').join('');
   }catch(e){ host.innerHTML='<div class="clean">'+esc(e.message)+'</div>'; }
 }
 const slDraft={};
