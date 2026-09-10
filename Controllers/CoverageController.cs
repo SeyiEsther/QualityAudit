@@ -14,11 +14,6 @@ public class CoverageController : ControllerBase
 
     public CoverageController(QualityAuditContext db) => _db = db;
 
-    /// <summary>
-    /// Per audit item for the chosen week: severity, expected vs actual checks, the shortfall,
-    /// a per-day tick count across the Tuesday..Monday audit week, and who/which shifts covered it.
-    /// Under-target items are returned first.
-    /// </summary>
     [HttpGet]
     public async Task<CoverageResponse> Get([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -78,7 +73,6 @@ public class CoverageController : ControllerBase
         }
 
         response.ItemsAtTarget = response.Items.Count(i => i.Actual >= i.Expected);
-        // Under-target first, then by position.
         response.Items = response.Items
             .OrderByDescending(i => i.Shortfall > 0)
             .ThenByDescending(i => i.Shortfall)

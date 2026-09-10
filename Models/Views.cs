@@ -1,11 +1,5 @@
 namespace QualityAudit.Models;
 
-// ============================================================================
-// Keyless entities mapped to the pre-built SQL views. Property names match the
-// view column names. See QualityAuditContext for the ToView() mappings.
-// ============================================================================
-
-// dbo.vw_CurrentSeverity — resolves severity for TODAY'S week only (see FormController note).
 public class CurrentSeverity
 {
     public int AuditItemId { get; set; }
@@ -18,7 +12,6 @@ public class CurrentSeverity
     public int IsFallback { get; set; }
 }
 
-// dbo.vw_WeeklyCompliance
 public class WeeklyCompliance
 {
     public DateOnly WeekStarting { get; set; }
@@ -34,7 +27,6 @@ public class WeeklyCompliance
     public int NotAuditedCount { get; set; }
 }
 
-// dbo.vw_Failures
 public class VwFailure
 {
     public int SubmissionId { get; set; }
@@ -59,7 +51,6 @@ public class VwFailure
     public int AttachmentCount { get; set; }
 }
 
-// dbo.vw_FailuresByCustomer
 public class FailuresByCustomer
 {
     public DateOnly WeekStarting { get; set; }
@@ -71,7 +62,6 @@ public class FailuresByCustomer
     public decimal? FailRatePct { get; set; }
 }
 
-// dbo.vw_CheckPointFailures
 public class CheckPointFailure
 {
     public DateOnly WeekStarting { get; set; }
@@ -81,7 +71,6 @@ public class CheckPointFailure
     public int FailCount { get; set; }
 }
 
-// dbo.vw_WeeklySummary
 public class WeeklySummary
 {
     public DateOnly WeekStarting { get; set; }

@@ -3,11 +3,6 @@ using QualityAudit.Models;
 
 namespace QualityAudit.Data;
 
-/// <summary>
-/// EF Core context mapped onto the existing RittalQualityAudit v3 database. This app never
-/// creates or migrates schema — every mapping points at a table or view that already exists.
-/// EF Core 8 maps DateOnly to SQL 'date' natively.
-/// </summary>
 public class QualityAuditContext : DbContext
 {
     public QualityAuditContext(DbContextOptions<QualityAuditContext> options) : base(options) { }
@@ -97,7 +92,6 @@ public class QualityAuditContext : DbContext
             e.Property(x => x.UploadedAt).HasDefaultValueSql("SYSUTCDATETIME()").ValueGeneratedOnAdd();
         });
 
-        // Views — keyless entity types.
         mb.Entity<CurrentSeverity>().HasNoKey().ToView("vw_CurrentSeverity");
         mb.Entity<WeeklyCompliance>().HasNoKey().ToView("vw_WeeklyCompliance");
         mb.Entity<VwFailure>().HasNoKey().ToView("vw_Failures");

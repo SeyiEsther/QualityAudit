@@ -14,11 +14,6 @@ public class FormController : ControllerBase
 
     public FormController(QualityAuditContext db) => _db = db;
 
-    /// <summary>
-    /// Everything the entry form needs in one call. Machine severity is resolved for the
-    /// requested date's week directly from SeverityAssignments (NOT vw_CurrentSeverity, which
-    /// only knows today's week), falling back to AuditItems.DefaultSeverity.
-    /// </summary>
     [HttpGet("{departmentId:int}")]
     public async Task<IActionResult> Get(int departmentId, [FromQuery] DateOnly? date)
     {

@@ -1,113 +1,27 @@
-# RittalQualityAudit — Quality Audit (QA 343-34) · v3
+# RittalQualityAudit
 
-Digital replacement for the paper QA 343-34 sheet. ASP.NET Core 8 Web API with a
-single-page HTML/JS frontend. **EF Core** over the existing `RittalQualityAudit` v3
-database (no Dapper, no EF migrations) — consistent with the TL Portal.
+Digital replacement for the paper QA 343-34 shift audit form, covering Sheet Metal
+and Assembly. ASP.NET Core 8 with EF Core, a single-page frontend in
+`wwwroot/index.html`, backed by SQL Server (`RittalQualityAudit` on CSMSVR02).
 
-## v5 additions (consolidated spec)
-
-- **Attainment gauge** — `GET /api/dashboard/attainment?departmentId=&from=&to=` and a radial dial
-  on the dashboard: actual audited checks (OK/NOT_OK) vs expected (each week's per-item
-  `ChecksPerWeek` for the severity in force that week). Target from `Departments.TargetPercent`.
-  Period selector: this week / this month / rolling 12 months.
-- **Coverage tab** — `GET /api/coverage?departmentId=&weekStarting=`: per-item expected vs actual,
-  shortfall, and a Tuesday→Monday tick grid; under-target items first; week navigation.
-- **Shifts are 1st / 2nd / 3rd** everywhere (free text; the department's own tracker uses these).
-- **History search** — `search` param matches `Deviation` / `ActionDetail`, plus a shift filter.
-- **Admin editors added**: action types (CRUD), severity levels (`ChecksPerWeek` + `Instruction`),
-  and department `TargetPercent` — so nothing numeric is hardcoded.
-- **RAG legend** is collapsible on New Audit and shown as a strip on the Dashboard.
-
-> **Schema note:** `Departments.TargetPercent` is mapped as `decimal` (consistent with the views'
-> `DECIMAL(5,1)` percentages). If the live column is `int` and you hit a cast error on
-> `/api/departments`, it's a one-line fix — add `.HasConversion<int>()` to the `TargetPercent`
-> property mapping in `QualityAuditContext`.
-
-## The four things v3 gets right
-
-1. **The audit week starts on TUESDAY.** `Services/WeekHelper.cs` mirrors `dbo.fn_WeekStarting`
-   exactly (anchor off 1900-01-02, a Tuesday). `WeekStarting` is computed server-side from
-   `AuditDate` on every save and never trusted from the client.
-2. **Severity is snapshotted, never joined live.** Each result stamps `SeverityAtAudit`, resolved
-   from `SeverityAssignments` for that week (falling back to `AuditItems.DefaultSeverity`).
-   Changing this week's RAG never alters last week's numbers.
-3. **Machine names are not unique.** Identity is `AuditItems.Id`; ordering is `SortOrder`; the UI
-   shows the row number so repeated names (e.g. "OEM product check EOL: Meta" ×8) stay distinct.
-4. **NDT is per-department.** The Destructive/NDT sub-check renders only when
-   `Departments.HasNdtCheck` is true (Sheet Metal), driven by the flag.
-
-## Layout
+## Run
 
 ```
-Program.cs                      host: EF Core + controllers + static files + attachment storage
-appsettings.json                connection string + Storage:AttachmentRoot
-Data/QualityAuditContext.cs     maps 13 tables + 6 views onto the existing v3 schema
-Models/Entities.cs / Views.cs / Dtos.cs
-Services/WeekHelper.cs          Tuesday-week rule (mirror of fn_WeekStarting)
-Services/AttachmentStorage.cs   photos on disk under Storage:AttachmentRoot
-Services/UserContext.cs         pluggable identity + IsAdmin check (no auth yet)
-Controllers/                    Departments, Form, Submissions, Attachments, Dashboard, Admin
-wwwroot/index.html              the whole frontend (4 tabs)
+dotnet run
 ```
 
-## API
+Open http://localhost:5000. The connection string key is `RittalQualityAudit`
+(`appsettings.json`); photo attachments are written under `Storage:AttachmentRoot`.
 
-| Method | Route | Purpose |
-| ------ | ----- | ------- |
-| GET  | `/api/departments` | Active departments (incl. `HasNdtCheck`, `FormRef`). |
-| GET  | `/api/form/{departmentId}?date=` | Everything the form is built from; machine severity resolved for that date's week. |
-| POST | `/api/submissions` | Create a draft (`isComplete:false`) or submit (`true`). Snapshots severity, validates mandatory fields, one transaction. Returns id + auditItemId→resultId map. |
-| PUT  | `/api/submissions/{id}` | Resume/update; upserts results by AuditItemId so photos survive. |
-| GET  | `/api/submissions/draft?departmentId=&date=&shift=` | The resumable incomplete submission, if any. |
-| GET  | `/api/submissions?from=&to=&departmentId=&shift=` | History list. |
-| GET  | `/api/submissions/{id}` | Full read-only detail. |
-| POST | `/api/results/{resultId}/attachments` | Multipart image upload (≤10 MB), GUID filename on disk. |
-| GET  | `/api/attachments/{id}` | Stream a photo back. |
-| GET  | `/api/dashboard/summary?departmentId=&weekStarting=` | This week vs last, compliance-vs-target. |
-| GET  | `/api/dashboard/failures` · `/by-customer` · `/check-points` · `/overview` | The dashboard feeds. |
-| GET/POST | `/api/admin/severities` | Weekly RAG review + bulk upsert (defaults to next Tuesday). |
-| GET/POST/PUT | `/api/admin/audit-items` · `/users` · `/customers` · `/check-points` | Self-service admin CRUD (soft delete). |
+## Tabs
 
-## Result values
+New Audit, Dashboard, Coverage, History, Admin.
 
-Exactly three, spelled out everywhere (no abbreviations) with hover tooltips:
+## Notes
 
-- **OK** — Acceptable. Product/process meets and conforms to standard. No non-conformity found.
-- **Not OK** — Not acceptable. Product/process has deviations from standard.
-- **Not Audited** — Not audited. A reason is required.
-
-Mandatory rules (enforced client-side, server-side, and by DB CHECK constraints): any `NOT_OK`
-(row or sub-check) requires a **deviation**; `NOT_AUDITED` requires a **reason**; `NOT_OK` prompts
-for an **action taken** (recommended, not blocking).
-
-## Resumability & drafts
-
-`Submissions.IsComplete` distinguishes a draft (0) from a submission (1). Only `IsComplete = 1`
-feeds the dashboard views. On the New Audit tab, if an incomplete submission exists for the same
-department + date + shift, the app offers to resume it (server-side draft). There is also a
-localStorage safety net that offers to restore in-progress work and is cleared only after a
-confirmed 200.
-
-## Admin access (pluggable, no auth yet)
-
-`UserContext` reads an `X-Username` header and matches it against `AuditUsers` (Username, Email,
-or DisplayName), checking `IsAdmin`. With no username supplied it allows access (no auth yet). The
-Admin tab has a "Signed in as" picker that sends the chosen identity. `IsAdmin` is editable in the
-Users section (currently set on Mark Tapp, Nicky Gleeson, Steven White as a best guess).
-
-## Run / publish
-
-```
-dotnet restore && dotnet run          # http://localhost:5000
-dotnet publish -c Release -o publish   # copy to IIS on csm-srv-16 (No Managed Code app pool)
-```
-
-Set `Storage:AttachmentRoot` in `appsettings.json` to a writable file share the app pool can reach.
-
-## Known open points (build around them, editable — no deploy needed)
-
-- `FailureModes`/`CheckPoints` placeholder content and `SeverityLevels.ChecksPerWeek` (assumes
-  5 days × 3 shifts) are editable in Admin.
-- `AuditUsers.IsAdmin` is a best guess — editable in Admin.
-- Serial-number linkage into HCL Notes is out of scope and not built.
-- No authentication yet — see the pluggable seam above.
+- The database schema is hand-managed. The app maps onto the existing tables and
+  views and never runs migrations. One-off changes live in `sql/` to run in SSMS.
+- The audit week starts on Tuesday. Severity is set per machine each week and
+  stored on each result at save time, so historical figures don't change when the
+  current week's severity is edited.
+- No authentication yet; admin access is checked against `AuditUsers`.

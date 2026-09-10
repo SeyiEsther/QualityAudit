@@ -390,23 +390,17 @@ body.tv .pane{max-width:1600px}
 </main>
 
 <script>
-// ==========================================================================
-// Helpers + constants
-// ==========================================================================
 const RESULTS = [
   ['OK','OK','#15803d','Acceptable. Product/process meets and conforms to standard. No non-conformity found.'],
   ['NOT_OK','Not OK','#b91c1c','Not acceptable. Product/process has deviations from standard.'],
   ['NOT_AUDITED','Not Audited','#64748b','Not audited. A reason is required.']
 ];
-// Fallback only — real severity colours come from SeverityLevels.ColourHex in the DB.
-// Amber kept in sync with the DB's new yellow so there's no mismatched flash before load.
 const RAG = { 1:{name:'Green',hex:'#15803d'}, 2:{name:'Amber',hex:'#ff8200'}, 3:{name:'Red',hex:'#b91c1c'} };
 const todayISO = () => new Date().toISOString().slice(0,10);
 const daysAgoISO = n => new Date(Date.now()-n*86400000).toISOString().slice(0,10);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const val = id => document.getElementById(id).value;
 const setVal = (id,v)=>{ document.getElementById(id).value=(v==null?'':v); };
-// Mirror of dbo.fn_WeekStarting (Tuesday weeks) for the dashboard/admin pickers.
 function weekStartingISO(iso){ const anchor=Date.UTC(1900,0,2); const d=Date.parse((iso||todayISO())+'T00:00:00Z'); const days=Math.floor((d-anchor)/86400000); const wk=Math.floor(days/7)*7; return new Date(anchor+wk*86400000).toISOString().slice(0,10); }
 function nextTuesdayISO(){ const d=Date.parse(weekStartingISO(todayISO())+'T00:00:00Z')+7*86400000; return new Date(d).toISOString().slice(0,10); }
 
@@ -421,9 +415,6 @@ const adminHeaders = () => adminUser ? { 'X-Username': adminUser } : {};
 function adminApi(path, method, body){ return api(path,{ method:method||'GET', headers:Object.assign({'Content-Type':'application/json'},adminHeaders()), body:body!=null?JSON.stringify(body):undefined }); }
 function toast(msg,isErr){ const t=document.createElement('div'); t.className='toast'+(isErr?' err':''); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3400); }
 
-// ==========================================================================
-// State
-// ==========================================================================
 let DEPARTMENTS=[], USERS=[], FORM=null, SEVLEVELS={}, MACHINES=[], CHECKPOINTS=[];
 let rows={}, filter={sev:'all',loc:'all',flag:'all'}, expanded=null;
 let currentView='entry', lastSaved=null, submissionId=null;
@@ -437,9 +428,6 @@ const isAudited=r=>r&&r.result!=='';
 const anyNok=r=>r&&(r.result==='NOT_OK'||r.plans==='NOT_OK'||r.ndt==='NOT_OK'||r.areaDocs==='NOT_OK');
 const rowState=r=>anyNok(r)?'nok':isAudited(r)?'ok':'todo';
 
-// ==========================================================================
-// View switching
-// ==========================================================================
 const PANES={entry:'view-entry',confirm:'view-confirm',dashboard:'view-dashboard',coverage:'view-coverage',history:'view-history',historyDetail:'view-history-detail',overview:'view-overview',admin:'view-admin'};
 function showView(v){
   currentView=v;
@@ -460,15 +448,11 @@ function showView(v){
 }
 function toggleLegend(){ const l=document.getElementById('sev-legend'); l.classList.toggle('collapsed'); document.getElementById('legend-caret').textContent=l.classList.contains('collapsed')?'▸':'▾'; }
 
-// ==========================================================================
-// Departments + init
-// ==========================================================================
 async function loadDepartments(){
   try{
     DEPARTMENTS=await api('/api/departments');
     document.getElementById('dept-btns').innerHTML = DEPARTMENTS.map(d=>'<button class="dept-btn" onclick="chooseDepartment('+d.id+')">'+esc(d.name)+(d.formRef?'<span class="dref">'+esc(d.formRef)+'</span>':'')+'</button>').join('') || '<div class="muted">No active departments.</div>';
     ['d-dept','cov-dept','hist-dept'].forEach(id=>{ const sel=document.getElementById(id); const all=(id==='hist-dept')?'<option value="">All</option>':''; sel.innerHTML=all+DEPARTMENTS.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join(''); });
-    // Pre-load users (with IsAdmin) from the first department's form.
     if(DEPARTMENTS.length){ try{ const f=await api('/api/form/'+DEPARTMENTS[0].id); USERS=f.auditUsers||[]; (f.severityLevels||[]).forEach(l=>SEVLEVELS[l.severity]=l); populateUserPickers(); }catch(_){} }
   }catch(e){ document.getElementById('dept-btns').innerHTML='<div class="muted">Could not load departments: '+esc(e.message)+'</div>'; }
 }
@@ -481,9 +465,6 @@ function populateUserPickers(){
 function changeDepartment(){ FORM=null; submissionId=null; document.getElementById('entry-main').classList.add('hidden'); document.getElementById('dept-choose').classList.remove('hidden'); document.getElementById('footbar').classList.add('hidden'); }
 async function chooseDepartment(id){ await loadForm(id); }
 
-// ==========================================================================
-// Entry form
-// ==========================================================================
 async function loadForm(deptId, keepRows){
   try{
     FORM=await api('/api/form/'+deptId+'?date='+encodeURIComponent(val('h-date')||todayISO()));
@@ -526,8 +507,6 @@ function segHtml(kind,id,value,size){
 function textOn(hex){ if(!hex||hex.length<7) return '#fff'; const h=hex.replace('#',''); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16); return (0.2126*r+0.7152*g+0.0722*b)/255>0.5?'#1a1a1a':'#fff'; }
 function naReasonId(code){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>r.code===code); return x?x.id:null; }
 function naReasonLabel(id){ const x=(FORM&&FORM.notAuditedReasons||[]).find(r=>String(r.id)===String(id)); return x?x.label:'Not Audited'; }
-// Four-button result bank: OK | Not OK | No Time | Not Running. The last two both store
-// Result = NOT_AUDITED with the matching reason id (looked up from the DB at runtime).
 function resultBankHtml(m,r){
   const noTime=naReasonId('NO_TIME'), notRun=naReasonId('NOT_RUNNING'), isNa=r.result==='NOT_AUDITED';
   const btns=[
@@ -536,7 +515,6 @@ function resultBankHtml(m,r){
     ['No Time', isNa && String(r.notAuditedReasonId)===String(noTime) && noTime!=null, '#64748b', "setNaResult("+m.id+",'NO_TIME')", 'Not audited — no time this shift.'],
     ['Not Running', isNa && String(r.notAuditedReasonId)===String(notRun) && notRun!=null, '#64748b', "setNaResult("+m.id+",'NOT_RUNNING')", 'Not audited — machine not running.']
   ];
-  // OK first for touch ergonomics? keep spec order: OK | Not OK | No Time | Not Running.
   const order=[btns[1],btns[0],btns[2],btns[3]];
   return '<div class="seg seg-md result-bank">'+order.map(([lbl,on,hex,fn,tip])=>'<button type="button" class="seg-btn'+(on?' on':'')+'" title="'+esc(tip)+'" style="'+(on?('background:'+hex+';color:'+textOn(hex)):'')+'" onclick="'+fn+'">'+lbl+'</button>').join('')+'</div>';
 }
@@ -554,7 +532,6 @@ function machineRowHtml(m,r){
 }
 function fieldInput(id,key,label,value,cls){ return '<label class="field"><span>'+esc(label)+'</span><input class="'+(cls||'')+'" value="'+esc(value)+'" oninput="setField('+id+',\''+key+'\',this.value)"></label>'; }
 function rowDetailHtml(m,r,lv){
-  // Not Audited: the auditor didn't fill anything out — show ONLY the reason dropdown.
   if(r.result==='NOT_AUDITED'){
     return '<div class="row-detail"><label class="field"><span>Reason not audited <span class="req-flag">required</span></span>'+
       '<select onchange="setField('+m.id+',\'notAuditedReasonId\',this.value)"><option value="">— select —</option>'+
@@ -562,11 +539,9 @@ function rowDetailHtml(m,r,lv){
       '</select></label></div>';
   }
   const needDev=anyNok(r);
-  // sub-checks (NDT only when the department has it)
   const subs=['<div class="subfield"><span>Plans in place &amp; used</span>'+segHtml('plans',m.id,r.plans,'sm')+'</div>'];
   if(FORM.department.hasNdtCheck) subs.push('<div class="subfield"><span>Destructive / NDT in place &amp; used</span>'+segHtml('ndt',m.id,r.ndt,'sm')+'</div>');
   subs.push('<div class="subfield"><span>Area docs up to date</span>'+segHtml('areaDocs',m.id,r.areaDocs,'sm')+'</div>');
-  // check-points for this machine's severity (cumulative)
   const cps=CHECKPOINTS.filter(c=>c.minSeverity<=m.severity);
   const cpHtml = cps.length ? '<div class="cp-list"><div class="ins-note">'+esc(lv.instruction)+'</div>'+cps.map(c=>
     '<div class="cp-row"><div class="cp-lbl">'+esc(c.label)+(c.conditional?'<em>(if applicable)</em>':'')+'</div>'+segHtml('cp:'+c.id,m.id,r.checkPoints[c.id]||'','sm')+'</div>').join('')+'</div>' : '';
@@ -596,8 +571,6 @@ function setSeg(kind,id,v){
   else {
     r[kind]=(r[kind]===v)?'':v;
     if(kind==='result' && r.result==='NOT_AUDITED'){
-      // Not Audited carries only its reason — clear everything else so a stale sub-check
-      // can't demand a (now hidden) deviation, and so the DB check constraints stay happy.
       r.plans=''; r.ndt=''; r.areaDocs=''; r.deviation=''; r.partNo=''; r.customerId=''; r.actionTypeId=''; r.actionDetail=''; r.checkPoints={};
     }
   }
@@ -605,8 +578,6 @@ function setSeg(kind,id,v){
 }
 function setField(id,key,v){ rows[id][key]=v; scheduleDraftSave(); }
 function toggleExpand(id){ expanded=(expanded===id)?null:id; renderRows(); }
-// Clicking OK fills in every sub-check (and every applicable check-point) as OK so the data
-// is searchable later. Not done for Not OK / No Time / Not Running. The user can override.
 function autofillOk(id){
   const r=rows[id], m=machineById(id); if(!m) return;
   r.plans='OK'; r.ndt=FORM.department.hasNdtCheck?'OK':''; r.areaDocs='OK';
@@ -625,7 +596,6 @@ function setNaResult(id,code){
     r.result=''; r.notAuditedReasonId=''; renderRows(); updateProgress(); scheduleDraftSave(); return;
   }
   r.result='NOT_AUDITED'; r.notAuditedReasonId=(rid!=null?String(rid):'');
-  // Not Audited carries only its reason — clear everything else.
   r.plans=''; r.ndt=''; r.areaDocs=''; r.deviation=''; r.partNo=''; r.customerId=''; r.actionTypeId=''; r.actionDetail=''; r.checkPoints={};
   if(rid==null) toast('Reason “'+code+'” is not set up in the database — pick a reason in the row',true);
   renderRows(); updateProgress(); scheduleDraftSave();
@@ -656,8 +626,6 @@ function rowNumList(ids){
   return nums.length<=12 ? ('rows '+nums.join(', ')) : ('rows '+nums.slice(0,12).join(', ')+' +'+(nums.length-12)+' more');
 }
 function validateRows(){
-  // Deviation is required ONLY for Not OK (main result or any sub-check). Never for
-  // Not Audited — which requires a reason instead. This matches the DB CHECK constraints.
   const devBad=[], reasonBad=[];
   MACHINES.forEach(m=>{ const r=rows[m.id]; if(!isAudited(r)) return;
     if(r.result==='NOT_AUDITED'){ if(!r.notAuditedReasonId) reasonBad.push(m.id); }
@@ -705,7 +673,6 @@ async function saveAudit(complete){
 function showInlineError(msg){ const el=document.getElementById('entry-error'); el.textContent=msg; el.classList.remove('hidden'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
 function clearInlineError(){ document.getElementById('entry-error').classList.add('hidden'); }
 
-// Photos — ensure the row is persisted (draft-save) so we have a resultId, then upload.
 async function onPhotoPick(id, input){
   const file=input.files&&input.files[0]; if(!file) return;
   try{
@@ -731,9 +698,6 @@ function showConfirm(info){
 }
 function startNewAudit(){ resetEntry(); showView('entry'); }
 
-// ==========================================================================
-// Draft backup (localStorage) + server-draft resume
-// ==========================================================================
 function scheduleDraftSave(){ draftDismissed=true; hideDraftBanner(); clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft,500); }
 function saveDraft(){ if(!FORM) return; try{ localStorage.setItem(DRAFT_KEY,JSON.stringify({departmentId:FORM.department.id,header:getHeader(),other:val('h-other'),rows,submissionId,savedAt:new Date().toISOString()})); }catch(_){}}
 function checkDraft(){
@@ -783,9 +747,6 @@ function loadDetailIntoForm(d){
   renderRows(); updateProgress();
 }
 
-// ==========================================================================
-// Dashboard
-// ==========================================================================
 let charts={}; function destroyChart(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } }
 let DASH_FAILURES=[], dashFilter=null;
 function monthFirst(iso){ const d=new Date(iso+'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)).toISOString().slice(0,10); }
@@ -879,9 +840,6 @@ function drawCustChart(custs){
 }
 function toggleTv(){ document.body.classList.toggle('tv'); }
 
-// ==========================================================================
-// Coverage
-// ==========================================================================
 function covWeek(delta){ const d=new Date(Date.parse((val('cov-week')||todayISO())+'T00:00:00Z')+delta*86400000); setVal('cov-week', d.toISOString().slice(0,10)); loadCoverage(); }
 function dayLabel(iso){ const d=new Date(iso+'T00:00:00Z'); return d.toLocaleDateString('en-GB',{weekday:'short',timeZone:'UTC'})+' '+d.getUTCDate(); }
 async function loadCoverage(){
@@ -902,9 +860,6 @@ function renderCoverage(c){
     '<div class="cov-scroll"><table class="cov-grid"><thead>'+head+'</thead><tbody>'+(rows||'<tr><td colspan="'+(4+c.days.length)+'" class="clean">No active items.</td></tr>')+'</tbody></table></div></div>';
 }
 
-// ==========================================================================
-// History
-// ==========================================================================
 async function loadHistory(){
   const host=document.getElementById('history-body');
   let q='?from='+encodeURIComponent(val('hist-from'))+'&to='+encodeURIComponent(val('hist-to'));
@@ -946,9 +901,6 @@ async function showOverview(){
   }catch(e){ document.getElementById('ovChart').parentElement.innerHTML='<div class="clean">Could not load overview.<br>'+esc(e.message)+'</div>'; }
 }
 
-// ==========================================================================
-// Admin
-// ==========================================================================
 function onAdminUserChange(){ adminUser=val('adm-user'); loadAdmin(); }
 function currentUserIsAdmin(){ if(!adminUser) return true; const u=USERS.find(x=>(x.email||x.displayName)===adminUser); return u?u.isAdmin:false; }
 function loadAdmin(){
@@ -1104,9 +1056,6 @@ async function saveDepartment(id){ const d=DEP_LIST.find(x=>x.id===id); if(!d)re
   const body={ targetPercent:(depDraft[id]!=null?depDraft[id]:d.targetPercent), sortOrder:d.sortOrder, isActive:d.isActive };
   try{ const r=await adminApi('/api/admin/departments/'+id,'PUT',body); Object.assign(d,r); toast('Saved'); }catch(e){ toast('Failed: '+e.message,true); } }
 
-// ==========================================================================
-// Filter chips + init
-// ==========================================================================
 document.getElementById('filter-chips').addEventListener('click', e=>{ const btn=e.target.closest('.chip'); if(!btn) return;
   ['sev','loc','flag'].forEach(k=>{ if(btn.dataset[k]!==undefined){ filter[k]=btn.dataset[k]; document.querySelectorAll('#filter-chips [data-'+k+']').forEach(b=>b.classList.toggle('on',b===btn)); } });
   renderRows(); });

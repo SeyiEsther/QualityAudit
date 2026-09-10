@@ -14,7 +14,6 @@ public class DashboardController : ControllerBase
 
     public DashboardController(QualityAuditContext db) => _db = db;
 
-    // GET /api/dashboard/summary?departmentId=&weekStarting=
     [HttpGet("summary")]
     public async Task<DashboardSummary> Summary([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -62,8 +61,6 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // Pass rate by location — no view provides it; compute from base rows for the week,
-        // grouped by the machine's Location (department-agnostic: handles 'Assembly' too).
         var pairs = await _db.Results.AsNoTracking()
             .Where(r => (r.Outcome == "OK" || r.Outcome == "NOT_OK")
                         && r.Submission!.IsComplete
@@ -86,9 +83,6 @@ public class DashboardController : ControllerBase
         return result;
     }
 
-    // GET /api/dashboard/attainment?departmentId=&from=&to=
-    // Headline figure: actual audited checks (OK/NOT_OK) against expected checks, where
-    // expected sums each week's per-item ChecksPerWeek for the severity in force that week.
     [HttpGet("attainment")]
     public async Task<AttainmentResult> Attainment([FromQuery] int departmentId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
@@ -131,7 +125,6 @@ public class DashboardController : ControllerBase
         };
     }
 
-    // GET /api/dashboard/failures?departmentId=&weekStarting=
     [HttpGet("failures")]
     public async Task<IEnumerable<VwFailure>> Failures([FromQuery] int? departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -151,7 +144,6 @@ public class DashboardController : ControllerBase
         return await query.OrderByDescending(v => v.Severity).ThenByDescending(v => v.AuditDate).ToListAsync();
     }
 
-    // GET /api/dashboard/by-customer?departmentId=&weekStarting=
     [HttpGet("by-customer")]
     public async Task<IEnumerable<FailuresByCustomer>> ByCustomer([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -162,7 +154,6 @@ public class DashboardController : ControllerBase
             .ToListAsync();
     }
 
-    // GET /api/dashboard/check-points?departmentId=&weekStarting=
     [HttpGet("check-points")]
     public async Task<IEnumerable<CheckPointFailure>> CheckPoints([FromQuery] int departmentId, [FromQuery] DateOnly? weekStarting)
     {
@@ -173,7 +164,6 @@ public class DashboardController : ControllerBase
             .ToListAsync();
     }
 
-    // GET /api/dashboard/overview?departmentId=&months=12
     [HttpGet("overview")]
     public async Task<IEnumerable<OverviewMonth>> Overview([FromQuery] int departmentId, [FromQuery] int months = 12)
     {
@@ -198,8 +188,6 @@ public class DashboardController : ControllerBase
                 Fail = g.Count(x => x.Outcome == "NOT_OK")
             });
 
-        // Expected checks per month = sum of each week's per-item ChecksPerWeek, the week
-        // assigned to the month of its Tuesday.
         var items = await _db.AuditItems.AsNoTracking()
             .Where(i => i.DepartmentId == departmentId && i.IsActive).ToListAsync();
         var itemIds = items.Select(i => i.Id).ToList();

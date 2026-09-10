@@ -1,18 +1,5 @@
--- ============================================================================
--- Add three auditors to dbo.AuditUsers: Suzanne, Suzu, Adam.
--- Active, non-admin. Surnames taken from their email addresses.
---
--- Safe: additive only. Submissions.Auditor is free text, so no existing
--- submission is affected. New active users simply appear in the auditor picker.
--- Idempotent: re-running skips anyone already present (matched by email).
---
--- NOTE: the known AuditUsers schema is (Id, DisplayName, Email, Username,
--- IsAdmin, IsActive) — there is no IsAuditor column, so these are inserted as
--- IsAdmin = 0, IsActive = 1 (every active user is an auditor). If an IsAuditor
--- column HAS since been added, the guarded block at the end sets it to 1 too.
---
--- Run in SSMS on CSMSVR02.
--- ============================================================================
+-- Add three auditors (active, non-admin). Additive and idempotent, matched by email.
+-- The IsAuditor update runs only if that column exists. Run in SSMS on CSMSVR02.
 USE RittalQualityAudit;
 GO
 
@@ -26,7 +13,6 @@ FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM dbo.AuditUsers u WHERE u.Email = v.Email);
 GO
 
--- Only if an IsAuditor column exists (schema addition) — otherwise skipped cleanly.
 IF COL_LENGTH('dbo.AuditUsers', 'IsAuditor') IS NOT NULL
     EXEC(N'UPDATE dbo.AuditUsers SET IsAuditor = 1
            WHERE Email IN (N''shosking@rittal-csm.co.uk'',

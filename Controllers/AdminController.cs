@@ -22,8 +22,6 @@ public class AdminController : ControllerBase
     private async Task<IActionResult?> GuardAsync() =>
         await _user.IsAdminAsync() ? null : StatusCode(403, new { error = "Admin access required." });
 
-    // ===================== Weekly severity review =====================
-
     [HttpGet("severities")]
     public async Task<IActionResult> GetSeverities([FromQuery] DateOnly? weekStarting, [FromQuery] int? departmentId)
     {
@@ -91,8 +89,6 @@ public class AdminController : ControllerBase
         return Ok(new { weekStarting = week, saved = req.Assignments.Count });
     }
 
-    // ===================== Machines =====================
-
     [HttpGet("audit-items")]
     public async Task<IActionResult> GetAuditItems([FromQuery] int? departmentId)
     {
@@ -138,14 +134,12 @@ public class AdminController : ControllerBase
         if (input.DefaultSeverity is >= 1 and <= 3) item.DefaultSeverity = input.DefaultSeverity;
         item.SpecialMeasures = input.SpecialMeasures;
         item.SortOrder = input.SortOrder;
-        item.IsActive = input.IsActive;   // false = retire
+        item.IsActive = input.IsActive;
 
         try { await _db.SaveChangesAsync(); }
         catch (Exception ex) { return StatusCode(500, new { error = "Could not save machine: " + ex.Message }); }
         return Ok(item);
     }
-
-    // ===================== Users =====================
 
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers()
@@ -192,8 +186,6 @@ public class AdminController : ControllerBase
         return Ok(user);
     }
 
-    // ===================== Customers =====================
-
     [HttpGet("customers")]
     public async Task<IActionResult> GetCustomers()
     {
@@ -229,8 +221,6 @@ public class AdminController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new { error = "Could not save customer: " + ex.Message }); }
         return Ok(customer);
     }
-
-    // ===================== Check points =====================
 
     [HttpGet("check-points")]
     public async Task<IActionResult> GetCheckPoints()
@@ -280,8 +270,6 @@ public class AdminController : ControllerBase
         return Ok(cp);
     }
 
-    // ===================== Action types =====================
-
     [HttpGet("action-types")]
     public async Task<IActionResult> GetActionTypes()
     {
@@ -319,8 +307,6 @@ public class AdminController : ControllerBase
         return Ok(at);
     }
 
-    // ===================== Severity levels (frequency + instruction) =====================
-
     [HttpGet("severity-levels")]
     public async Task<IActionResult> GetSeverityLevels()
     {
@@ -341,8 +327,6 @@ public class AdminController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new { error = "Could not save severity level: " + ex.Message }); }
         return Ok(level);
     }
-
-    // ===================== Departments (target percent) =====================
 
     [HttpGet("departments")]
     public async Task<IActionResult> GetDepartments()

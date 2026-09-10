@@ -2,11 +2,6 @@ using QualityAudit.Models;
 
 namespace QualityAudit.Services;
 
-/// <summary>
-/// Resolves the severity in force for an audit item in a given week: the latest
-/// SeverityAssignment on or before that week, falling back to DefaultSeverity.
-/// Mirrors the rule used at save time so expected-check maths and the live form agree.
-/// </summary>
 public static class SeverityMath
 {
     public static byte Resolve(

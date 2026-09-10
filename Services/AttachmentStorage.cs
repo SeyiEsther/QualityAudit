@@ -1,9 +1,5 @@
 namespace QualityAudit.Services;
 
-/// <summary>
-/// Photo attachments live on disk (a file share in production), not in the database — only
-/// metadata is stored in dbo.ResultAttachments. The root comes from Storage:AttachmentRoot.
-/// </summary>
 public class AttachmentStorage
 {
     private readonly string _root;
@@ -15,7 +11,6 @@ public class AttachmentStorage
         Directory.CreateDirectory(_root);
     }
 
-    /// <summary>Saves a stream under a fresh GUID filename and returns (storedName, sizeBytes).</summary>
     public async Task<(string StoredName, long Size)> SaveAsync(Stream content, string extension)
     {
         var storedName = Guid.NewGuid().ToString("N") + extension;

@@ -23,9 +23,6 @@ public class SubmissionsController : ControllerBase
         _user = user;
     }
 
-    // -----------------------------------------------------------------------
-    // POST /api/submissions  — create a draft or a completed audit.
-    // -----------------------------------------------------------------------
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] SubmissionRequest? req)
     {
@@ -60,7 +57,7 @@ public class SubmissionsController : ControllerBase
         try
         {
             _db.Submissions.Add(submission);
-            await _db.SaveChangesAsync();   // one transaction
+            await _db.SaveChangesAsync();
         }
         catch (Exception ex)
         {
@@ -70,10 +67,6 @@ public class SubmissionsController : ControllerBase
         return Ok(BuildSaveResult(submission));
     }
 
-    // -----------------------------------------------------------------------
-    // PUT /api/submissions/{id}  — resume/update a draft or edit a submission.
-    // Upserts results by AuditItemId so existing ResultIds (and their photos) survive.
-    // -----------------------------------------------------------------------
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Put(int id, [FromBody] SubmissionRequest? req)
     {
@@ -109,7 +102,6 @@ public class SubmissionsController : ControllerBase
 
         var incomingIds = picked.Select(r => r.AuditItemId).ToHashSet();
 
-        // Remove results (and their children + photo files) no longer present.
         foreach (var gone in submission.Results.Where(r => !incomingIds.Contains(r.AuditItemId)).ToList())
         {
             foreach (var att in gone.Attachments)
@@ -129,9 +121,6 @@ public class SubmissionsController : ControllerBase
             else
             {
                 ApplyResult(existing, input, severity);
-                // Replace this result's check-point answers (they carry no attachments).
-                // Clear + Add on the tracked collection so EF fixes up ResultId and marks
-                // the new rows Added / the old rows Deleted reliably.
                 _db.ResultCheckPoints.RemoveRange(existing.CheckPoints);
                 existing.CheckPoints.Clear();
                 foreach (var cp in BuildCheckPoints(input))
@@ -151,9 +140,6 @@ public class SubmissionsController : ControllerBase
         return Ok(BuildSaveResult(submission));
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/submissions/draft?departmentId=&date=&shift=  — resumable draft.
-    // -----------------------------------------------------------------------
     [HttpGet("draft")]
     public async Task<IActionResult> Draft([FromQuery] int departmentId, [FromQuery] DateOnly date, [FromQuery] string shift)
     {
@@ -167,9 +153,6 @@ public class SubmissionsController : ControllerBase
         return await Detail(draft);
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/submissions?from=&to=&departmentId=&shift=  — History list.
-    // -----------------------------------------------------------------------
     [HttpGet]
     public async Task<IEnumerable<SubmissionListItem>> List(
         [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
@@ -183,8 +166,6 @@ public class SubmissionsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            // Case-insensitive partial match over deviation / action detail (SQL Server
-            // default collation is case-insensitive, so Contains suffices).
             query = query.Where(s => s.Results.Any(r =>
                 (r.Deviation != null && r.Deviation.Contains(term)) ||
                 (r.ActionDetail != null && r.ActionDetail.Contains(term))));
@@ -206,9 +187,6 @@ public class SubmissionsController : ControllerBase
             .ToListAsync();
     }
 
-    // -----------------------------------------------------------------------
-    // GET /api/submissions/{id}  — full read-only detail.
-    // -----------------------------------------------------------------------
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id)
     {
@@ -263,9 +241,6 @@ public class SubmissionsController : ControllerBase
         return Ok(detail);
     }
 
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
     private static string? ValidateHeader(SubmissionRequest req)
     {
         if (req.DepartmentId <= 0) return "A department is required.";
@@ -274,7 +249,6 @@ public class SubmissionsController : ControllerBase
         return null;
     }
 
-    // Mandatory-field rules, enforced server-side (also enforced by DB CHECK constraints).
     private static List<string> ValidateRows(List<ResultInput> rows)
     {
         var problems = new List<string>();
@@ -285,8 +259,6 @@ public class SubmissionsController : ControllerBase
 
             if (value == "NOT_AUDITED")
             {
-                // Not Audited requires a reason and nothing else — deviation is never required
-                // for it (its sub-checks are cleared on save, see ApplyResult).
                 if (r.NotAuditedReasonId is null or <= 0)
                     problems.Add($"Item {r.AuditItemId}: a reason is required for a Not Audited result.");
             }
@@ -330,8 +302,6 @@ public class SubmissionsController : ControllerBase
         var notAudited = value == "NOT_AUDITED";
         target.SeverityAtAudit = severity(r.AuditItemId);
         target.Outcome = value;
-        // A Not Audited row carries only its reason. Null everything else so it can never trip
-        // the deviation CHECK constraint, and to match the form (nothing else is filled in).
         target.PlansResult = notAudited ? null : NullIfBlank(r.PlansResult);
         target.NdtResult = notAudited ? null : NullIfBlank(r.NdtResult);
         target.AreaDocsResult = notAudited ? null : NullIfBlank(r.AreaDocsResult);
@@ -345,7 +315,7 @@ public class SubmissionsController : ControllerBase
 
     private static List<ResultCheckPoint> BuildCheckPoints(ResultInput r) =>
         r.Result!.Trim() == "NOT_AUDITED"
-            ? new List<ResultCheckPoint>()   // a Not Audited row records no check-point answers
+            ? new List<ResultCheckPoint>()
             : r.CheckPoints
                 .Where(cp => !string.IsNullOrWhiteSpace(cp.Answer) && ValidResults.Contains(cp.Answer!.Trim()))
                 .Select(cp => new ResultCheckPoint { CheckPointId = cp.CheckPointId, Answer = cp.Answer!.Trim() })
@@ -361,7 +331,7 @@ public class SubmissionsController : ControllerBase
     private void TryDeleteFile(string storedName)
     {
         try { if (_storage.Exists(storedName)) System.IO.File.Delete(_storage.FullPath(storedName)); }
-        catch { /* best effort — orphaned files can be swept later */ }
+        catch {  }
     }
 
     private static string? NullIfBlank(string? value) =>

@@ -9,7 +9,7 @@ namespace QualityAudit.Controllers;
 [ApiController]
 public class AttachmentsController : ControllerBase
 {
-    private const long MaxBytes = 10 * 1024 * 1024; // ~10 MB
+    private const long MaxBytes = 10 * 1024 * 1024;
 
     private readonly QualityAuditContext _db;
     private readonly AttachmentStorage _storage;
@@ -20,7 +20,6 @@ public class AttachmentsController : ControllerBase
         _storage = storage;
     }
 
-    /// <summary>Multipart image upload for a result. Files go on disk; metadata to the DB.</summary>
     [HttpPost("api/results/{resultId:int}/attachments")]
     [RequestSizeLimit(MaxBytes + 1024 * 1024)]
     public async Task<IActionResult> Upload(int resultId, [FromForm] IFormFile? file)
@@ -58,7 +57,6 @@ public class AttachmentsController : ControllerBase
         return Ok(new AttachmentDto { Id = attachment.Id, FileName = attachment.FileName });
     }
 
-    /// <summary>Lists the attachments (id + original name) for a result — used for thumbnails.</summary>
     [HttpGet("api/results/{resultId:int}/attachments")]
     public async Task<IEnumerable<AttachmentDto>> List(int resultId) =>
         await _db.ResultAttachments.AsNoTracking()
@@ -67,7 +65,6 @@ public class AttachmentsController : ControllerBase
             .Select(a => new AttachmentDto { Id = a.Id, FileName = a.FileName })
             .ToListAsync();
 
-    /// <summary>Streams an attachment's bytes back with its stored content type.</summary>
     [HttpGet("api/attachments/{id:int}")]
     public async Task<IActionResult> Get(int id)
     {

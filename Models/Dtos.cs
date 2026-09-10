@@ -1,9 +1,5 @@
 namespace QualityAudit.Models;
 
-// ============================================================================
-// Request bodies
-// ============================================================================
-
 public class SubmissionRequest
 {
     public int DepartmentId { get; set; }
@@ -12,14 +8,14 @@ public class SubmissionRequest
     public string Auditor { get; set; } = "";
     public string? AreaLine { get; set; }
     public string? OtherNotes { get; set; }
-    public bool IsComplete { get; set; }          // false = save draft, true = submit
+    public bool IsComplete { get; set; }
     public List<ResultInput> Results { get; set; } = new();
 }
 
 public class ResultInput
 {
     public int AuditItemId { get; set; }
-    public string? Result { get; set; }           // OK / NOT_OK / NOT_AUDITED
+    public string? Result { get; set; }
     public string? PlansResult { get; set; }
     public string? NdtResult { get; set; }
     public string? AreaDocsResult { get; set; }
@@ -91,10 +87,6 @@ public class CheckPointInput
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
-
-// ============================================================================
-// Response shapes
-// ============================================================================
 
 public class FormResponse
 {
@@ -267,8 +259,8 @@ public class OverviewMonth
     public int Total { get; set; }
     public int Pass { get; set; }
     public int Fail { get; set; }
-    public int Completed { get; set; }   // OK + NOT_OK
-    public int Expected { get; set; }    // target checks for the month
+    public int Completed { get; set; }
+    public int Expected { get; set; }
     public decimal PassRate { get; set; }
     public decimal FailRate { get; set; }
 }
@@ -288,7 +280,7 @@ public class CoverageResponse
 {
     public int DepartmentId { get; set; }
     public DateOnly WeekStarting { get; set; }
-    public List<string> Days { get; set; } = new();   // 7 ISO dates, Tuesday..Monday
+    public List<string> Days { get; set; } = new();
     public int ItemsAtTarget { get; set; }
     public int ItemCount { get; set; }
     public List<CoverageItem> Items { get; set; } = new();
@@ -304,7 +296,7 @@ public class CoverageItem
     public int Expected { get; set; }
     public int Actual { get; set; }
     public int Shortfall { get; set; }
-    public List<int> DayCounts { get; set; } = new();   // aligned to Days
+    public List<int> DayCounts { get; set; } = new();
     public List<string> Shifts { get; set; } = new();
     public List<string> Auditors { get; set; } = new();
 }
